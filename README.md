@@ -12,18 +12,6 @@ npm install --save millegrilles.nodejs
 
 ## Usage
 
-```jsx
-import React, { Component } from 'react'
-
-import MyComponent from 'millegrilles.nodejs'
-import 'millegrilles.nodejs/dist/index.css'
-
-class Example extends Component {
-  render() {
-    return <MyComponent />
-  }
-}
-```
 
 ## License
 
