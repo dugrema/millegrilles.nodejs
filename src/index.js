@@ -1,5 +1,7 @@
+import server5 from './server5'
+
 function test() {
-  console.debug("TEsT")
+    console.debug("nodejs TEST")
 }
 
-export { test }
+export { test, server5 }
