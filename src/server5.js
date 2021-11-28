@@ -5,7 +5,7 @@ import session from 'express-session'
 import redis from "redis"
 import redisConnect from 'connect-redis'
 import {v4 as uuidv4} from 'uuid'
-import { Server as socketio } from 'socket.io'
+import socketio from 'socket.io'
 import socketioSession from 'express-socket.io-session'
 import MilleGrillesAmqpDAO from './amqpdao'
 import MilleGrillesPKI from './pki'
@@ -84,8 +84,8 @@ export default async (app, configurerEvenements, opts) => {
     port: Number(redisPortStr),
   })
 
-//   // Injecter le redisClient dans pki
-//   instPki.redisClient = redisClient
+  // Injecter le redisClient dans pki
+  instPki.redisClient = redisClient
 
   // Morgan logging
   const loggingType = process.env.NODE_ENV !== 'production' ? 'dev' : 'combined'
@@ -95,37 +95,37 @@ export default async (app, configurerEvenements, opts) => {
 
   // Utiliser la session pour toutes les routes
   app.use(sessionMiddleware)
-  // app.use(transferHeaders)
+  app.use(transferHeaders)
   if( ! opts.noPreAuth ) app.use(verifierAuthentification)
 
-//   // Configurer server et socket.io
-//   const server = _initServer(app, hostname)
-//   const socketIo = _initSocketIo(server, sessionMiddleware, configurerEvenements, opts)
+  // Configurer server et socket.io
+  const server = _initServer(app, hostname, certPems)
+  const socketIo = _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts)
 
-//   // Injecter DAOs
-//   const {comptesUsagersDao} = initComptesUsagers(amqpdao)
-//   app.use((req, res, next)=>{
-//     req.amqpdao = amqpdao
-//     req.comptesUsagersDao = comptesUsagersDao
-//     next()
-//   })
-//   socketIo.use((socket, next)=>{
-//     socket.amqpdao = amqpdao
-//     socket.comptesUsagersDao = comptesUsagersDao
-//     socket.comptesUsagers = comptesUsagersDao
+  // Injecter DAOs
+  // const {comptesUsagersDao} = initComptesUsagers(amqpdao)
+  // app.use((req, res, next)=>{
+  //   req.amqpdao = amqpdao
+  //   req.comptesUsagersDao = comptesUsagersDao
+  //   next()
+  // })
+  // socketIo.use((socket, next)=>{
+  //   socket.amqpdao = amqpdao
+  //   socket.comptesUsagersDao = comptesUsagersDao
+  //   socket.comptesUsagers = comptesUsagersDao
 
-//     if(opts.verifierAutorisation) {
-//       socket.verifierAutorisation = opts.verifierAutorisation
-//     }
+  //   if(opts.verifierAutorisation) {
+  //     socket.verifierAutorisation = opts.verifierAutorisation
+  //   }
 
-//     next()
-//   })
+  //   next()
+  // })
 
-//   debug('Demarrage server %s:%s', hostname, port)
-//   server.listen(port)
+  debug('Demarrage server %s:%s', hostname, port)
+  server.listen(port)
 
   return {
-    //server, socketIo, amqpdao
+    server, socketIo, amqpdao
   }
 }
 
@@ -189,135 +189,135 @@ function configurerSession(hostname, redisClient, opts) {
   return session(sessionConfig)
 }
 
-// function _initSocketIo(server, sessionMiddleware, configurerEvenements, opts) {
-//   opts = opts || {}
+function _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts) {
+  opts = opts || {}
 
-//   var pathSocketio = opts.pathApp
-//   var cookieName = 'millegrilles.io'
-//   if(opts.pathApp) {
-//     cookieName = opts.pathApp + '.io'
-//     cookieName = cookieName.replace('/', '')
-//   }
-//   const path = [pathSocketio, 'socket.io'].join('/')
-//   const ioConfig = {
-//     path,
-//     cookie: cookieName,
-//     // cookie: {
-//     //   name: cookieName,
-//     //   httpOnly: true,
-//     //   sameSite: "strict",
-//     //   maxAge: 86400
-//     // }
-//   }
+  var pathSocketio = opts.pathApp
+  var cookieName = 'millegrilles.io'
+  if(opts.pathApp) {
+    cookieName = opts.pathApp + '.io'
+    cookieName = cookieName.replace('/', '')
+  }
+  const path = [pathSocketio, 'socket.io'].join('/')
+  const ioConfig = {
+    path,
+    cookie: cookieName,
+    // cookie: {
+    //   name: cookieName,
+    //   httpOnly: true,
+    //   sameSite: "strict",
+    //   maxAge: 86400
+    // }
+  }
 
-//   if(opts.socketIoCORS) {
-//     ioConfig.cors = opts.socketIoCORS
-//   }
+  if(opts.socketIoCORS) {
+    ioConfig.cors = opts.socketIoCORS
+  }
 
-//   debug("Demarrage socket.io avec config %O", ioConfig)
-//   var socketIo = socketio(server, ioConfig)
+  debug("Demarrage socket.io avec config %O", ioConfig)
+  var socketIo = socketio(server, ioConfig)
 
-//   // Morgan logging
-//   const loggingType = process.env.NODE_ENV !== 'production' ? 'dev' : 'combined'
+  // Morgan logging
+  const loggingType = process.env.NODE_ENV !== 'production' ? 'dev' : 'combined'
 
-//   // Injecter socketIo dans le routingKeyManager pour supporter reception
-//   // de messages.
-//   amqpdao.routingKeyManager.socketio = socketIo
+  // Injecter socketIo dans le routingKeyManager pour supporter reception
+  // de messages.
+  amqpdao.routingKeyManager.socketio = socketIo
 
-//   // Ajouter middleware
-//   const socketioSessionMiddleware = socketioSession(sessionMiddleware, {autoSave: true})
-//   socketIo.use(socketioSessionMiddleware)
-//   socketIo.use(socketActionsMiddleware(configurerEvenements, opts))
-//   socketIo.on('connection', (socket) => {
-//     debug("server5._initSocketIo: Connexion id = %s, remoteAddress = %s", socket.id, socket.conn.remoteAddress);
-//     socket.on('disconnect', reason=>{
-//       if(reason === 'transport error') {
-//         console.error("ERROR server5._initSocketIo: Connexion id = %s, remoteAddress = %s err: %O", socket.id, socket.conn.remoteAddress, reason);
-//       }
-//     })
-//   })
+  // Ajouter middleware
+  const socketioSessionMiddleware = socketioSession(sessionMiddleware, {autoSave: true})
+  socketIo.use(socketioSessionMiddleware)
+  socketIo.use(socketActionsMiddleware(amqpdao, configurerEvenements, opts))
+  socketIo.on('connection', (socket) => {
+    debug("server5._initSocketIo: Connexion id = %s, remoteAddress = %s", socket.id, socket.conn.remoteAddress);
+    socket.on('disconnect', reason=>{
+      if(reason === 'transport error') {
+        console.error("ERROR server5._initSocketIo: Connexion id = %s, remoteAddress = %s err: %O", socket.id, socket.conn.remoteAddress, reason);
+      }
+    })
+  })
 
-//   return socketIo
-// }
+  return socketIo
+}
 
-// function socketActionsMiddleware(configurerEvenements, opts) {
-//   opts = opts || {}
+function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
+  opts = opts || {}
 
-//   const _configurerEvenements  = configurerEvenements
+  const _configurerEvenements  = configurerEvenements
 
-//   const middleware = (socket, next) => {
-//     // Injecter mq
-//     socket.amqpdao = amqpdao
-//     const headers = socket.handshake.headers
-//     debugConnexions("server5.socketActionsMiddleware Headers: %O", headers)
+  const middleware = (socket, next) => {
+    // Injecter mq
+    socket.amqpdao = amqpdao
+    const headers = socket.handshake.headers
+    debugConnexions("server5.socketActionsMiddleware Headers: %O", headers)
 
-//     // Configuration des listeners de base utilises pour enregistrer ou
-//     // retirer les listeners des sockets
-//     const configurationEvenements = _configurerEvenements(socket)
-//     socket.configurationEvenements = configurationEvenements
-//     debugConnexions("server5.socketActionsMiddleware Configuration evenements : %O", socket.configurationEvenements)
+    // Configuration des listeners de base utilises pour enregistrer ou
+    // retirer les listeners des sockets
+    const configurationEvenements = _configurerEvenements(socket)
+    socket.configurationEvenements = configurationEvenements
+    debugConnexions("server5.socketActionsMiddleware Configuration evenements : %O", socket.configurationEvenements)
 
-//     // Injecter nom d'usager sur le socket
-//     let nomUsager = headers['x-user-name'],
-//         userId = headers['x-user-id']
+    // Injecter nom d'usager sur le socket
+    let nomUsager = headers['x-user-name'],
+        userId = headers['x-user-id']
 
-//     // Determiner score d'authentification
-//     let authScore = headers['x-user-authscore']
+    // Determiner score d'authentification
+    let authScore = headers['x-user-authscore']
 
-//     if(!userId) {
-//       if(opts.noPreAuth) {
-//         // Mode maitredescomptes, utilise session pour charger valeurs si disponible
-//         if(!nomUsager) nomUsager = session.nomUsager
-//         if(!userId) userId = session.userId
-//         if(!authScore) authScore = session.authScore
-//       } else {
-//         debugConnexions("ERREUR server5.socketActionsMiddleware : headers.user-id n'est pas fourni")
-//         console.error("ERREUR server5.socketActionsMiddleware : headers.user-id n'est pas fourni")
-//         return socket.disconnect()
-//       }
-//     }
+    if(!userId) {
+      if(opts.noPreAuth) {
+        // Mode maitredescomptes, utilise session pour charger valeurs si disponible
+        if(!nomUsager) nomUsager = session.nomUsager
+        if(!userId) userId = session.userId
+        if(!authScore) authScore = session.authScore
+      } else {
+        debugConnexions("ERREUR server5.socketActionsMiddleware : headers.user-id n'est pas fourni")
+        console.error("ERREUR server5.socketActionsMiddleware : headers.user-id n'est pas fourni")
+        return socket.disconnect()
+      }
+    }
 
-//     if(authScore) {
-//       authScore = Number(authScore)
-//     } else {
-//       authScore = 0
-//     }
+    if(authScore) {
+      authScore = Number(authScore)
+    } else {
+      authScore = 0
+    }
 
-//     // Conserver l'information sur le socket (utiliser par apps)
-//     socket.nomUsager = nomUsager
-//     socket.userId = userId
-//     socket.authScore = authScore
+    // Conserver l'information sur le socket (utiliser par apps)
+    socket.nomUsager = nomUsager
+    socket.userId = userId
+    socket.authScore = authScore
 
-//     // Enregistrer evenements publics de l'application
-//     enregistrerListener(socket, configurationEvenements.listenersPublics)
-//     socket.activerListenersPrives = _ => enregistrerListenersPrives(socket, configurationEvenements.listenersPrives, opts)
-//     socket.activerModeProtege = _ => {activerModeProtege(socket, configurationEvenements.listenersProteges)}
+    // Enregistrer evenements publics de l'application
+    enregistrerListener(socket, configurationEvenements.listenersPublics)
+    socket.activerListenersPrives = _ => enregistrerListenersPrives(socket, configurationEvenements.listenersPrives, opts)
+    socket.activerModeProtege = _ => {activerModeProtege(socket, configurationEvenements.listenersProteges)}
 
-//     if(authScore > 0) {
-//       // On peut activer options privees, l'usager est authentifie
-//       debugConnexions("Configurer evenements prives : %O", configurationEvenements.listenersPrives)
-//       socket.activerListenersPrives()
-//     }
+    if(authScore > 0) {
+      // On peut activer options privees, l'usager est authentifie
+      debugConnexions("Configurer evenements prives : %O", configurationEvenements.listenersPrives)
+      socket.activerListenersPrives()
+    }
 
-//     socket.on('unsubscribe', (params, cb) => unsubscribe(socket, params, cb))
-//     socket.on('downgradePrive', (params, cb) => downgradePrive(socket, params, cb))
-//     socket.on('genererChallengeCertificat', async cb => {cb(await genererChallengeCertificat(socket))})
-//     socket.on('getCertificatsMaitredescles', async cb => {cb(await getCertificatsMaitredescles(socket))})
+    socket.on('unsubscribe', (params, cb) => unsubscribe(socket, params, cb))
+    socket.on('downgradePrive', (params, cb) => downgradePrive(socket, params, cb))
+    socket.on('genererChallengeCertificat', async cb => {cb(await genererChallengeCertificat(socket))})
+    socket.on('getCertificatsMaitredescles', async cb => {cb(await getCertificatsMaitredescles(socket))})
 
-//     socket.subscribe =   (params, cb) => { subscribe(socket, params, cb) }
-//     socket.unsubscribe = (params, cb) => { unsubscribe(socket, params, cb) }
-//     socket.modeProtege = false
+    socket.subscribe =   (params, cb) => { subscribe(socket, params, cb) }
+    socket.unsubscribe = (params, cb) => { unsubscribe(socket, params, cb) }
+    socket.modeProtege = false
 
-//     socket.on('getInfoIdmg', (params, cb) => getInfoIdmg(socket, params, cb, opts))
+    socket.on('getInfoIdmg', (params, cb) => getInfoIdmg(socket, params, cb, opts))
 
-//     debugConnexions("Socket events apres connexion: %O", Object.keys(socket._events))
+    debugConnexions("Socket events apres connexion: %O", Object.keys(socket._events))
 
-//     next()
-//   }
+    next()
+  }
 
-//   return middleware
+  return middleware
 
-// }
+}
 
 // function enregistrerListenersPrives(socket, listenersPrives, opts) {
 //   opts = opts || {}
@@ -471,16 +471,16 @@ function configurerSession(hostname, redisClient, opts) {
 
 // }
 
-// function transferHeaders(req, res, next) {
-//   /* Transferer infortion des headers vers la session. */
-//   const session = req.session
-//   if( ! session.nomUsager ) {
-//     session.nomUsager = req.headers['x-user-name']
-//     session.userId = req.headers['x-user-id']
-//     session.authScore = req.headers['x-user-authscore']
-//   }
-//   next()
-// }
+function transferHeaders(req, res, next) {
+  /* Transferer infortion des headers vers la session. */
+  const session = req.session
+  if( ! session.nomUsager ) {
+    session.nomUsager = req.headers['x-user-name']
+    session.userId = req.headers['x-user-id']
+    session.authScore = req.headers['x-user-authscore']
+  }
+  next()
+}
 
 function verifierAuthentification(req, res, next) {
   const session = req.session
