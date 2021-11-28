@@ -1,0 +1,15 @@
+{
+  "name": "millegrilles.nodejs",
+  "version": "2021.1.0",
+  "description": "Utilitaires communs serveur NodeJS pour MilleGrilles",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git.maceroc.com/git/millegrilles.nodejs"
+  },
+  "author": "Mathieu Dugre",
+  "license": "MIT"
+}
