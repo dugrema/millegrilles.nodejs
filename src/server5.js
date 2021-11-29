@@ -9,13 +9,13 @@ import socketio from 'socket.io'
 import socketioSession from 'express-socket.io-session'
 import MilleGrillesAmqpDAO from './amqpdao'
 import MilleGrillesPKI from './pki'
+import initComptesUsagers from './comptesUsagersDao'
 
 const debug = debugLib('millegrilles:server5'),
       debugConnexions = debugLib('millegrilles:server5:connexions'),
       redisStore = redisConnect(session)
 
 // const { genererChallengeCertificat, veriferUpgradeProtegerApp } = require('./authentification')
-// const { init: initComptesUsagers } = require('./dao/comptesUsagersDao')
 
 // Preparer certificats
 function chargerCertificats() {
@@ -103,23 +103,23 @@ export default async (app, configurerEvenements, opts) => {
   const socketIo = _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts)
 
   // Injecter DAOs
-  // const {comptesUsagersDao} = initComptesUsagers(amqpdao)
-  // app.use((req, res, next)=>{
-  //   req.amqpdao = amqpdao
-  //   req.comptesUsagersDao = comptesUsagersDao
-  //   next()
-  // })
-  // socketIo.use((socket, next)=>{
-  //   socket.amqpdao = amqpdao
-  //   socket.comptesUsagersDao = comptesUsagersDao
-  //   socket.comptesUsagers = comptesUsagersDao
+  const {comptesUsagersDao} = initComptesUsagers(amqpdao)
+  app.use((req, res, next)=>{
+    req.amqpdao = amqpdao
+    req.comptesUsagersDao = comptesUsagersDao
+    next()
+  })
+  socketIo.use((socket, next)=>{
+    socket.amqpdao = amqpdao
+    socket.comptesUsagersDao = comptesUsagersDao
+    socket.comptesUsagers = comptesUsagersDao
 
-  //   if(opts.verifierAutorisation) {
-  //     socket.verifierAutorisation = opts.verifierAutorisation
-  //   }
+    if(opts.verifierAutorisation) {
+      socket.verifierAutorisation = opts.verifierAutorisation
+    }
 
-  //   next()
-  // })
+    next()
+  })
 
   debug('Demarrage server %s:%s', hostname, port)
   server.listen(port)
@@ -319,157 +319,157 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
 
 }
 
-// function enregistrerListenersPrives(socket, listenersPrives, opts) {
-//   opts = opts || {}
-//   const session = socket.handshake.session
-//   const {nomUsager} = socket
-//   enregistrerListener(socket, listenersPrives)
-//   debugConnexions("Listeners prives usager %s\n%O", nomUsager, listenersPrives)
+function enregistrerListenersPrives(socket, listenersPrives, opts) {
+  opts = opts || {}
+  const session = socket.handshake.session
+  const {nomUsager} = socket
+  enregistrerListener(socket, listenersPrives)
+  debugConnexions("Listeners prives usager %s\n%O", nomUsager, listenersPrives)
 
-//   socket.on('upgradeProtege', async (params, cb) => {
-//     debugConnexions("server5.enregistrerListenersPrives event upgradeProtege %O / session %O", params, session)
-//     try {
-//       const resultat = await veriferUpgradeProtegerApp(socket, params, opts)
-//       debugConnexions("server5.enregistrerListenersPrives event upgradeProtege resultat %O", resultat)
-//       cb(resultat)
-//     } catch(err) {
-//       cb({err: ''+err, stack: err.stack})
-//     }
-//   })
-// }
+  socket.on('upgradeProtege', async (params, cb) => {
+    debugConnexions("server5.enregistrerListenersPrives event upgradeProtege %O / session %O", params, session)
+    try {
+      const resultat = await veriferUpgradeProtegerApp(socket, params, opts)
+      debugConnexions("server5.enregistrerListenersPrives event upgradeProtege resultat %O", resultat)
+      cb(resultat)
+    } catch(err) {
+      cb({err: ''+err, stack: err.stack})
+    }
+  })
+}
 
-// function activerModeProtege(socket, listenersProteges) {
-//   const session = socket.handshake.session
+function activerModeProtege(socket, listenersProteges) {
+  const session = socket.handshake.session
 
-//   enregistrerListener(socket, listenersProteges)
-//   debugConnexions("Activation mode protege pour socketId %s\n%O", socket.id, Object.values(socket._events))
+  enregistrerListener(socket, listenersProteges)
+  debugConnexions("Activation mode protege pour socketId %s\n%O", socket.id, Object.values(socket._events))
 
-//   socket.modeProtege = true
-//   socket.emit('modeProtege', {'etat': true})
-// }
+  socket.modeProtege = true
+  socket.emit('modeProtege', {'etat': true})
+}
 
-// function downgradePrive(socket, params, cb) {
-//   try {
-//     const nomUsager = socket.nomUsager
-//     socket.modeProtege = false
-//     debugConnexions("Downgrade vers mode prive - usager %s", nomUsager)
-//     socket.emit('modeProtege', {'etat': false})
+function downgradePrive(socket, params, cb) {
+  try {
+    const nomUsager = socket.nomUsager
+    socket.modeProtege = false
+    debugConnexions("Downgrade vers mode prive - usager %s", nomUsager)
+    socket.emit('modeProtege', {'etat': false})
 
-//     const listenersProtegesMillegrilles = socket.configurationEvenements.listenersProteges
-//     debugConnexions("Listeners proteges millegrilles\n%O", listenersProtegesMillegrilles)
-//     retirerListener(socket, listenersProtegesMillegrilles)
+    const listenersProtegesMillegrilles = socket.configurationEvenements.listenersProteges
+    debugConnexions("Listeners proteges millegrilles\n%O", listenersProtegesMillegrilles)
+    retirerListener(socket, listenersProtegesMillegrilles)
 
-//     // Retrait subscribe
-//     socket.removeAllListeners('subscribe')
+    // Retrait subscribe
+    socket.removeAllListeners('subscribe')
 
-//     debugConnexions("Socket events apres downgrade: %O", Object.keys(socket._events))
+    debugConnexions("Socket events apres downgrade: %O", Object.keys(socket._events))
 
-//     if(cb) cb(true)
-//   } catch(err) {
-//     console.error('server5.downgradePrive error : %O', err)
-//     if(cb) cb(false)
-//   }
-// }
+    if(cb) cb(true)
+  } catch(err) {
+    console.error('server5.downgradePrive error : %O', err)
+    if(cb) cb(false)
+  }
+}
 
-// function enregistrerListener(socket, collectionListener) {
-//   debugConnexions("server5.enregistrerListener %O", collectionListener)
-//   for(let idx in collectionListener) {
-//     const listener = collectionListener[idx]
-//     debugConnexions("Ajout listener %s", listener.eventName)
-//     if(listener.eventName) {
-//       socket.on(listener.eventName, listener.callback)
-//     }
-//   }
-// }
+function enregistrerListener(socket, collectionListener) {
+  debugConnexions("server5.enregistrerListener %O", collectionListener)
+  for(let idx in collectionListener) {
+    const listener = collectionListener[idx]
+    debugConnexions("Ajout listener %s", listener.eventName)
+    if(listener.eventName) {
+      socket.on(listener.eventName, listener.callback)
+    }
+  }
+}
 
-// function retirerListener(socket, collectionListener) {
-//   for(let idx in collectionListener) {
-//     const listener = collectionListener[idx]
-//     debugConnexions("Retrait du listener %s", listener.eventName)
-//     socket.removeAllListeners(listener.eventName) //, listener.callback)
-//   }
-// }
+function retirerListener(socket, collectionListener) {
+  for(let idx in collectionListener) {
+    const listener = collectionListener[idx]
+    debugConnexions("Retrait du listener %s", listener.eventName)
+    socket.removeAllListeners(listener.eventName) //, listener.callback)
+  }
+}
 
-// function subscribe(socket, params, cb) {
-//   try {
-//     debugConnexions("Subscribe : %O", params)
+function subscribe(socket, params, cb) {
+  try {
+    debugConnexions("Subscribe : %O", params)
 
-//     const routingKeys = params.routingKeys
-//     const niveauxSecurite = params.exchange || ['2.prive']
-//     debugConnexions("Subscribe securite %O, %O", niveauxSecurite, routingKeys)
+    const routingKeys = params.routingKeys
+    const niveauxSecurite = params.exchange || ['2.prive']
+    debugConnexions("Subscribe securite %O, %O", niveauxSecurite, routingKeys)
 
-//     const amqpdao = socket.amqpdao
-//     const channel = amqpdao.channel,
-//           reply_q = amqpdao.reply_q
+    const amqpdao = socket.amqpdao
+    const channel = amqpdao.channel,
+          reply_q = amqpdao.reply_q
 
-//     niveauxSecurite.forEach(niveauSecurite=>{
-//       amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q)
-//     })
+    niveauxSecurite.forEach(niveauSecurite=>{
+      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q)
+    })
 
-//     debugConnexions("Socket events apres subscribe: %O", Object.keys(socket._events))
+    debugConnexions("Socket events apres subscribe: %O", Object.keys(socket._events))
 
-//     if(cb) cb(true)
-//   } catch(err) {
-//     console.error('server5.subscribe error : %O', err)
-//     if(cb) cb(false)
-//   }
-// }
+    if(cb) cb(true)
+  } catch(err) {
+    console.error('server5.subscribe error : %O', err)
+    if(cb) cb(false)
+  }
+}
 
-// function unsubscribe(socket, params, cb) {
-//   try {
-//     const routingKeys = params.routingKeys
-//     if(routingKeys) {
-//       routingKeys.forEach(rk=>{
-//         socket.leave(rk)
-//       })
-//     }
-//     if(cb) cb(true)
-//   } catch(err) {
-//     console.error('server5.subscribe error : %O', err)
-//     if(cb) cb(false)
-//   }
+function unsubscribe(socket, params, cb) {
+  try {
+    const routingKeys = params.routingKeys
+    if(routingKeys) {
+      routingKeys.forEach(rk=>{
+        socket.leave(rk)
+      })
+    }
+    if(cb) cb(true)
+  } catch(err) {
+    console.error('server5.subscribe error : %O', err)
+    if(cb) cb(false)
+  }
 
-// }
+}
 
-// function getInfoIdmg(socket, params, cb, opts) {
-//   const session = socket.handshake.session,
-//         headers = socket.handshake.headers
-//   debugConnexions("server5.getInfoIdmg headers: %O\nsession %O", headers, session)
+function getInfoIdmg(socket, params, cb, opts) {
+  const session = socket.handshake.session,
+        headers = socket.handshake.headers
+  debugConnexions("server5.getInfoIdmg headers: %O\nsession %O", headers, session)
 
-//   const idmg = socket.amqpdao.pki.idmg
-//   let nomUsager = headers['x-user-name'] || socket.nomUsager
-//   let userId = headers['x-user-id'] || socket.userId
+  const idmg = socket.amqpdao.pki.idmg
+  let nomUsager = headers['x-user-name'] || socket.nomUsager
+  let userId = headers['x-user-id'] || socket.userId
 
-//   if(!userId && opts.noPreAuth) {
-//     // Maitre des comptes - permettre d'utiliser la session pour recuperer l'information
-//     nomUsager = session.nomUsager
-//     userId = session.userId
-//   }
+  if(!userId && opts.noPreAuth) {
+    // Maitre des comptes - permettre d'utiliser la session pour recuperer l'information
+    nomUsager = session.nomUsager
+    userId = session.userId
+  }
 
-//   const reponse = {idmg, nomUsager, userId}
-//   debugConnexions("server5.getInfoIdmg reponse: %O", reponse)
+  const reponse = {idmg, nomUsager, userId}
+  debugConnexions("server5.getInfoIdmg reponse: %O", reponse)
 
-//   cb(reponse)
-// }
+  cb(reponse)
+}
 
-// async function getCertificatsMaitredescles(socket, cb) {
-//   debugConnexions("server5.getCertificatsMaitredescles")
+async function getCertificatsMaitredescles(socket, cb) {
+  debugConnexions("server5.getCertificatsMaitredescles")
 
-//   const amqpdao = socket.amqpdao
-//   const domaineAction = 'MaitreDesCles.certMaitreDesCles'
-//   const params = {}
+  const amqpdao = socket.amqpdao
+  const domaineAction = 'MaitreDesCles.certMaitreDesCles'
+  const params = {}
 
-//   try {
-//     debugConnexions("Requete certificats maitredescles")
-//     const reponse = await amqpdao.transmettreRequete(domaineAction, params, {decoder: true})
-//     debugConnexions("Reponse certificats maitredescles %O", reponse)
-//     return reponse
-//   } catch(err) {
-//     debugConnexions("Erreur traitement liste applications\n%O", err)
-//     return {err}
-//   }
+  try {
+    debugConnexions("Requete certificats maitredescles")
+    const reponse = await amqpdao.transmettreRequete(domaineAction, params, {decoder: true})
+    debugConnexions("Reponse certificats maitredescles %O", reponse)
+    return reponse
+  } catch(err) {
+    debugConnexions("Erreur traitement liste applications\n%O", err)
+    return {err}
+  }
 
-// }
+}
 
 function transferHeaders(req, res, next) {
   /* Transferer infortion des headers vers la session. */

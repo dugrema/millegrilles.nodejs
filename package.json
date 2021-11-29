@@ -54,9 +54,10 @@
     "node-forge": "^0.10.0",
     "redis": "^4.0.0",
     "socket.io": "^4.4.0",
-    "uuid": "^8.3.2"
-  },
-  "dependencies": {
+    "uuid": "^8.3.2",
+    "base64url": "^3.0.1",
+    "crypto": "^1.0.1",
+    "fido2-lib": "^2.6.8",
     "spdy": "^4.0.2"
   }
 }
