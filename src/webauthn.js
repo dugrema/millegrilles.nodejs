@@ -45,7 +45,7 @@ function init(hostname, idmg, opts) {
   return {f2l: _f2l}
 }
 
-async function genererChallenge(methodesDisponibles, opts) {
+export async function genererChallenge(methodesDisponibles, opts) {
   opts = opts || {}
   const authnOptions = await _f2l.assertionOptions()
   debug("AuthnOptions : %O, opts: %O", authnOptions, opts)
@@ -79,7 +79,7 @@ async function genererChallenge(methodesDisponibles, opts) {
   return authnOptionsBuffer
 }
 
-function webauthnResponseBytesToMultibase(clientAssertionResponse) {
+export function webauthnResponseBytesToMultibase(clientAssertionResponse) {
   // Structure {
   //    id,
   //    id64,
@@ -113,7 +113,7 @@ function webauthnResponseBytesToMultibase(clientAssertionResponse) {
   return responseConvertie
 }
 
-async function verifierChallenge(challengeInfo, compteUsager, clientAssertionResponse, opts) {
+export async function verifierChallenge(challengeInfo, compteUsager, clientAssertionResponse, opts) {
   opts = opts || {}
   const authChallenge = challengeInfo.challenge,
         rpId = challengeInfo.rpId,
@@ -193,7 +193,7 @@ async function verifierChallenge(challengeInfo, compteUsager, clientAssertionRes
   return {authentifie: true, counter, userVerification, userPresence, assertionExpectations}
 }
 
-async function genererRegistrationOptions(userId, nomUsager, opts) {
+export async function genererRegistrationOptions(userId, nomUsager, opts) {
   opts = opts || {}
   debug("Registration request, userId %s, usager %s, opts: %O", userId, nomUsager, opts)
   // const attestationParams = {
@@ -245,7 +245,7 @@ async function genererRegistrationOptions(userId, nomUsager, opts) {
   }
 }
 
-async function validerRegistration(response, attestationExpectations) {
+export async function validerRegistration(response, attestationExpectations) {
   debug("validerRegistration sessionChallenge : %O, reponse : %O", attestationExpectations, response)
   let sessionChallenge = attestationExpectations.challenge
   if(typeof(sessionChallenge) === 'string') {
@@ -290,9 +290,9 @@ async function validerRegistration(response, attestationExpectations) {
   return informationCle
 }
 
-module.exports = {
-  init,
-  genererRegistrationOptions,
-  genererChallenge, verifierChallenge, validerRegistration,
-  webauthnResponseBytesToMultibase,
-}
+// module.exports = {
+//   init,
+//   genererRegistrationOptions,
+//   genererChallenge, verifierChallenge, validerRegistration,
+//   webauthnResponseBytesToMultibase,
+// }

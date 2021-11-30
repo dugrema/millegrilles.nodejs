@@ -16,7 +16,7 @@ const CONST_CHALLENGE_CERTIFICAT = 'challengeCertificat',
       CONST_AUTH_SECONDAIRE = 'authentificationSecondaire',
       CONST_WEBAUTHN_CHALLENGE = 'webauthnChallenge'
 
-async function verifierUsager(socket, params) {
+export async function verifierUsager(socket, params) {
   /*
   Verifier l'existence d'un usager par methode http.
   Retourne des methodes d'authentification lorsque l'usager existe.
@@ -99,7 +99,7 @@ async function verifierUsager(socket, params) {
   }
 }
 
-async function genererChallengeCertificat(socket) {
+export async function genererChallengeCertificat(socket) {
   debug("genererChallengeCertificat: Preparation challenge")
 
   // Generer challenge pour le certificat de navigateur ou cle de millegrille
@@ -117,7 +117,7 @@ async function genererChallengeCertificat(socket) {
   return reponse
 }
 
-function auditMethodesDisponibles(compteUsager, opts) {
+export function auditMethodesDisponibles(compteUsager, opts) {
   opts = opts || {}
 
   // Creer une liste de methodes disponibles et utilisees
@@ -161,7 +161,7 @@ function auditMethodesDisponibles(compteUsager, opts) {
   return methodesDisponibles
 }
 
-function auditMethodesUtilisees(session, params, opts) {
+export function auditMethodesUtilisees(session, params, opts) {
   opts = opts || {}
   const socket = opts.socket || {}
 
@@ -222,7 +222,7 @@ function auditMethodesUtilisees(session, params, opts) {
   return methodesUtilisees
 }
 
-async function auditMethodes(req, params, opts) {
+export async function auditMethodes(req, params, opts) {
   opts = opts || {}
   debug("Audit methodes d'authentification, params : %O", params)
 
@@ -260,7 +260,7 @@ async function auditMethodes(req, params, opts) {
   return {methodesDisponibles, methodesUtilisees, nombreVerifiees}
 }
 
-async function upgradeProtegeCertificat(socket, params) {
+export async function upgradeProtegeCertificat(socket, params) {
   // const compteUsager = await comptesUsagersDao.chargerCompte(socket.nomUsager)
   const session = socket.handshake.session
   const challengeSession = session[CONST_CHALLENGE_CERTIFICAT],
@@ -276,7 +276,7 @@ async function upgradeProtegeCertificat(socket, params) {
   return resultat.valide
 }
 
-async function upgradeProteger(socket, params) {
+export async function upgradeProteger(socket, params) {
   params = params || {}
 
   // debug("upgradeProteger, params : %O", params)
@@ -316,7 +316,7 @@ async function upgradeProteger(socket, params) {
 
 }
 
-async function veriferUpgradeProtegerApp(socket, params, opts) {
+export async function veriferUpgradeProtegerApp(socket, params, opts) {
   params = params || {}
   opts = opts || {}
 
@@ -420,7 +420,7 @@ async function veriferUpgradeProtegerApp(socket, params, opts) {
 //   return resultat
 // }
 
-async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody) {
+export async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody) {
   debug("verifierSignatureCertificat : idmg=%s", idmg)
 
   if( ! challengeSession || ! challengeBody ) return false
@@ -460,7 +460,7 @@ async function verifierSignatureCertificat(idmg, chainePem, challengeSession, ch
   throw new Error("Signature avec certificat invalide")
 }
 
-async function verifierSignatureMillegrille(certificatMillegrille, challengeSession, challengeBody) {
+export async function verifierSignatureMillegrille(certificatMillegrille, challengeSession, challengeBody) {
   // Validation de la signature de la cle de MilleGrille
 
   if( challengeBody.date !== challengeSession.date ) {
@@ -484,13 +484,13 @@ async function verifierSignatureMillegrille(certificatMillegrille, challengeSess
   throw new Error("Signature avec cle de Millegrille invalide")
 }
 
-module.exports = {
-  verifierUsager, auditMethodes, auditMethodesDisponibles,
-  upgradeProteger, upgradeProtegeCertificat,
-  verifierSignatureCertificat, verifierSignatureMillegrille,
-  genererChallengeCertificat,
-  // verifierMethode, 
-  veriferUpgradeProtegerApp,
+// module.exports = {
+//   verifierUsager, auditMethodes, auditMethodesDisponibles,
+//   upgradeProteger, upgradeProtegeCertificat,
+//   verifierSignatureCertificat, verifierSignatureMillegrille,
+//   genererChallengeCertificat,
+//   // verifierMethode, 
+//   veriferUpgradeProtegerApp,
 
-  CONST_CHALLENGE_CERTIFICAT, CONST_WEBAUTHN_CHALLENGE,
-}
+//   CONST_CHALLENGE_CERTIFICAT, CONST_WEBAUTHN_CHALLENGE,
+// }

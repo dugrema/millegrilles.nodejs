@@ -10,6 +10,7 @@ import socketioSession from 'express-socket.io-session'
 import MilleGrillesAmqpDAO from './amqpdao'
 import MilleGrillesPKI from './pki'
 import initComptesUsagers from './comptesUsagersDao'
+import { genererChallengeCertificat, veriferUpgradeProtegerApp } from './authentification'
 
 const debug = debugLib('millegrilles:server5'),
       debugConnexions = debugLib('millegrilles:server5:connexions'),
@@ -43,7 +44,7 @@ function chargerCookie() {
   return secretCookiesPassword
 }
 
-export default async (app, configurerEvenements, opts) => {
+export async function server5(app, configurerEvenements, opts) {
   opts = opts || {}
 
   // Preparer environnement
@@ -244,8 +245,6 @@ function _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements,
 function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
   opts = opts || {}
 
-  const _configurerEvenements  = configurerEvenements
-
   const middleware = (socket, next) => {
     // Injecter mq
     socket.amqpdao = amqpdao
@@ -254,7 +253,7 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
 
     // Configuration des listeners de base utilises pour enregistrer ou
     // retirer les listeners des sockets
-    const configurationEvenements = _configurerEvenements(socket)
+    const configurationEvenements = configurerEvenements(socket)
     socket.configurationEvenements = configurationEvenements
     debugConnexions("server5.socketActionsMiddleware Configuration evenements : %O", socket.configurationEvenements)
 
