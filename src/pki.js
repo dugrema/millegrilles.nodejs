@@ -4,7 +4,11 @@ import debugLib from 'debug'
 // const crypto = require('crypto')
 import forge from 'node-forge'
 import { StringDecoder } from 'string_decoder'
-import {forgecommon, formatteurMessage, validateurMessage, hachage, chiffrage} from '@dugrema/millegrilles.utiljs'
+import {
+  forgecommon, formatteurMessage, validateurMessage, hachage, 
+  // Chiffrage
+  creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles,
+} from '@dugrema/millegrilles.utiljs'
 
 // import {splitPEMCerts, FormatteurMessage} from './formatteurMessage'
 // import { verifierMessage } from './validateurMessage'
@@ -14,7 +18,7 @@ import {forgecommon, formatteurMessage, validateurMessage, hachage, chiffrage} f
 const {splitPEMCerts, FormatteurMessage} = formatteurMessage
 const { verifierMessage } = validateurMessage
 const { hacherCertificat } = hachage
-const { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } = chiffrage
+// const { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } = chiffrage
 
 // const REPERTOIRE_CERTS_TMP = tmp.dirSync().name
 // debug("Repertoire temporaire certs : %s", REPERTOIRE_CERTS_TMP);
