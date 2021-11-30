@@ -54,7 +54,8 @@ export default async (app, configurerEvenements, opts) => {
         redisPortStr = process.env.MG_REDIS_PORT || '6379'
   
   const exchange = opts.exchange || process.env.MG_EXCHANGE_DEFAUT || '3.protege'
-  debug("Utilisation hostname %s, exchange %s", hostname, exchange)
+  console.info("****************")
+  debug("server5.initialiser Utilisation hostname %s, exchange %s", hostname, exchange)
 
   // Charger PKI
   const instPki = new MilleGrillesPKI()
@@ -77,12 +78,12 @@ export default async (app, configurerEvenements, opts) => {
   console.info("server5.initialiser Connecter a AMQPDAO sur %s", urlMq)
   await amqpdao.connect(urlMq.href)
   console.info("server5.initialiser AMQPDAO connexion prete")
-  console.info("****************")
-
+  console.info("server5.initialiser Redis host %s:%s", redisHost, redisPortStr)
   const redisClient = redis.createClient({
     host: redisHost,
     port: Number(redisPortStr),
   })
+  console.info("****************")
 
   // Injecter le redisClient dans pki
   instPki.redisClient = redisClient
