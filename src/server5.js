@@ -396,14 +396,15 @@ function subscribe(socket, params, cb) {
 
     const routingKeys = params.routingKeys
     const niveauxSecurite = params.exchange || ['2.prive']
-    debugConnexions("Subscribe securite %O, %O", niveauxSecurite, routingKeys)
+    const userId = params.userId
+    debugConnexions("Subscribe securite %O, %O, userId=%O", niveauxSecurite, routingKeys, userId)
 
     const amqpdao = socket.amqpdao
     const channel = amqpdao.channel,
           reply_q = amqpdao.reply_q
 
     niveauxSecurite.forEach(niveauSecurite=>{
-      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q)
+      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q, {userId})
     })
 
     debugConnexions("Socket events apres subscribe: %O", Object.keys(socket._events))

@@ -39,6 +39,9 @@ export default class RoutingKeyManager {
     let callback = this.registeredRoutingKeyCallbacks[routingKey];
     const correlationId = properties.correlationId
     const json_message = JSON.parse(messageContent);
+    
+    // Champs speciaux utilises pour le routage
+    const userId = json_message.user_id || json_message.userId
 
     var promise;
     if(callback) {
@@ -77,22 +80,28 @@ export default class RoutingKeyManager {
           // Le nom de la room commence toujours par le niveau de securite (exchange)
           const rooms = [
             // Supporter capture de tous les evenements
-            exchange + '.' + splitKey[0] + '.#',
+            exchange + '/' + splitKey[0] + '.#',
 
             // Pour supporter toutes les actions d'un domaine, on a room : evenement.DOMAINE.*
-            [exchange, ...splitKey.slice(0, 2), '*'].join('.'),
+            exchange + '/' + [...splitKey.slice(0, 2), '*'].join('.'),
 
             // Pour supporter une action sur tous les domaines, on a evenement.#.ACTION
-            [exchange, splitKey[0], '#', splitKey[2]].join('.'),
+            exchange + '/' + [splitKey[0], '#', splitKey[2]].join('.'),
 
             // Match exact pour evenement.DOMAINE.ACTION
-            [exchange, ...splitKey.slice(0, 3)].join('.'),
+            exchange + '/' + [...splitKey.slice(0, 3)].join('.'),
 
             // Nom room avec key complete
-            [exchange, ...splitKey].join('.'),
+            exchange + '/' + [...splitKey].join('.'),
           ]
 
-          var room = this.socketio //.volatile
+          if(userId) {
+            // Routage avec userId
+            rooms.push(userId + '/' + [...splitKey].join('.'))
+          }
+
+          // Combiner toutes les rooms en une seule liste
+          var room = this.socketio
           rooms.forEach(roomName=>{room = room.to(roomName)})
 
           const contenuEvenement = {
@@ -105,9 +114,10 @@ export default class RoutingKeyManager {
           }
           debugMessages("Emission evenement sur rooms %s Socket.IO\n%O", rooms, contenuEvenement)
 
-          room.emit('mq_evenement', contenuEvenement)
+          // room.emit('mq_evenement', contenuEvenement)
 
-          // Nouvelle approche, emettre sur nom d'action
+          // Nouvelle approche, emettre la routing key "abregee" (sans le sous-domaine)
+          // Ex: evenement.GrosFichiers.abcd-1234.majFichier devient evenement.GrosFichiers.majFichier
           const rkSplit = routingKey.split('.')
           const nomAction = rkSplit[rkSplit.length-1]
           const domaineAction = [rkSplit[0], rkSplit[1], nomAction].join('.')
@@ -129,7 +139,7 @@ export default class RoutingKeyManager {
   }
 
   handleResponse(correlationId, message, opts) {
-    debug("!!! Response via correlaction Id %s", correlationId)
+    // debug("!!! Response via correlaction Id %s", correlationId)
     const {properties, fields} = opts
 
     let callback = this.registeredCorrelationIds[correlationId]
@@ -186,9 +196,11 @@ export default class RoutingKeyManager {
     }
   }
 
-  addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q) {
+  addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q, opts) {
+    opts = opts || {}
     const socketId = socket.id
     const exchange = niveauSecurite || this.exchange
+    const userId = opts.userId
 
     for(var routingKey_idx in routingKeys) {
       let routingKeyName = routingKeys[routingKey_idx];
@@ -198,11 +210,18 @@ export default class RoutingKeyManager {
       this.mq.channel.bindQueue(reply_q.queue, exchange, routingKeyName);
 
       // Associer le socket a la room appropriee
-      var roomName = exchange + '.' + routingKeyName
+      let roomName
+      if(userId) {
+        // Enregistrement pour un user en particulier
+        roomName = `${userId}/${routingKeyName}`
+      } else {
+        // Enregistrement sur l'exchange (global, voit passer tous les messages correspondants)
+        roomName = `${exchange}/${routingKeyName}`
+      }
       debug("Socket id:%s, join room %s", socketId, roomName)
       socket.join(roomName)
 
-      this.roomsEvenements[roomName] = {exchange, reply_q, roomName, routingKeyName}
+      this.roomsEvenements[roomName] = {exchange, reply_q, roomName, routingKeyName, userId}
     }
 
   }
