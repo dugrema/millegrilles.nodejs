@@ -296,7 +296,9 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
     if(authScore > 0) {
       // On peut activer options privees, l'usager est authentifie
       debugConnexions("Configurer evenements prives : %O", configurationEvenements.listenersPrives)
-      socket.activerListenersPrives()
+      socket.on('upgradeProtege', (params, cb)=>upgradeConnexion(socket, params, cb))
+      socket.on('upgrade', (params, cb)=>upgradeConnexion(socket, params, cb))
+      // socket.activerListenersPrives()
     }
 
     socket.on('unsubscribe', (params, cb) => unsubscribe(socket, params, cb))
@@ -319,23 +321,46 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
 
 }
 
+async function upgradeConnexion(socket, params, cb) {
+  const session = socket.handshake.session
+
+  debugConnexions("server5.enregistrerListenersPrives event upgrade %O / session %O", params, session)
+  try {
+    const resultat = await veriferUpgradeProtegerApp(socket, params)
+    debugConnexions("server5.upgradeConnexion event upgrade resultat %O", resultat)
+
+    if(resultat.prive === true) {
+      socket.activerListenersPrives()
+    }
+
+    if(resultat.protege === true) {
+      socket.activerModeProtege()
+    }
+
+    cb(resultat)
+  } catch(err) {
+    cb({err: ''+err, stack: err.stack})
+  }
+}
+
 function enregistrerListenersPrives(socket, listenersPrives, opts) {
   opts = opts || {}
-  const session = socket.handshake.session
   const {nomUsager} = socket
   enregistrerListener(socket, listenersPrives)
   debugConnexions("Listeners prives usager %s\n%O", nomUsager, listenersPrives)
 
-  socket.on('upgradeProtege', async (params, cb) => {
-    debugConnexions("server5.enregistrerListenersPrives event upgradeProtege %O / session %O", params, session)
-    try {
-      const resultat = await veriferUpgradeProtegerApp(socket, params, opts)
-      debugConnexions("server5.enregistrerListenersPrives event upgradeProtege resultat %O", resultat)
-      cb(resultat)
-    } catch(err) {
-      cb({err: ''+err, stack: err.stack})
-    }
-  })
+  socket.modePrive = true
+
+  // socket.on('upgradeProtege', async (params, cb) => {
+  //   debugConnexions("server5.enregistrerListenersPrives event upgradeProtege %O / session %O", params, session)
+  //   try {
+  //     const resultat = await veriferUpgradeProtegerApp(socket, params, opts)
+  //     debugConnexions("server5.enregistrerListenersPrives event upgradeProtege resultat %O", resultat)
+  //     cb(resultat)
+  //   } catch(err) {
+  //     cb({err: ''+err, stack: err.stack})
+  //   }
+  // })
 }
 
 function activerModeProtege(socket, listenersProteges) {

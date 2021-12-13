@@ -357,24 +357,25 @@ export async function veriferUpgradeProtegerApp(socket, params, opts) {
       }
 
       // Verifier si on a des conditions supplementaires (e.g. delegations)
-      let autorise = false
       if(socket.verifierAutorisation) {
         debug("Verifier autorisation usager %s / ext: %O", nomUsager, extensions)
-        autorise = await socket.verifierAutorisation(socket, '3.protege', resultat.certificat)
+        let autorise = await socket.verifierAutorisation(socket, '3.protege', resultat.certificat)
+        if(autorise) {
+          debug("Activer mode protege pour socket %s de l'usager %s", socket.id, nomUsager)
+          return {prive: true, protege: true}
+        } else {
+          autorise = await socket.verifierAutorisation(socket, '2.prive', resultat.certificat)
+          return {prive: true, protege: false}
+        }
       } else {
-        autorise = true
+        debug("Activer mode prive pour socket %s de l'usager %s", socket.id, nomUsager)
+        return {prive: true, protege: false}
       }
 
-      if(autorise) {
-        debug("Activer mode protege pour socket %s de l'usager %s", socket.id, nomUsager)
-        socket.activerModeProtege()
-      }
-
-      return autorise
     }
   }
 
-  return false
+  return {prive: false, protege: false}
 }
 
 // async function verifierMethode(contexte, methode, compteUsager, params) {
