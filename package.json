@@ -1,6 +1,6 @@
 {
   "name": "millegrilles.nodejs",
-  "version": "1.0.0",
+  "version": "2021.1.0",
   "description": "Utilitaires communs serveur NodeJS pour MilleGrilles",
   "author": "dugrema",
   "license": "MIT",
@@ -9,7 +9,7 @@
   "module": "dist/index.modern.js",
   "source": "src/index.js",
   "engines": {
-    "node": ">=10"
+    "node": ">=16"
   },
   "scripts": {
     "build": "microbundle-crl --no-compress --format modern,cjs",
