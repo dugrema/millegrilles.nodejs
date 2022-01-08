@@ -1,6 +1,6 @@
 {
   "name": "millegrilles.nodejs",
-  "version": "2021.1.0",
+  "version": "2022.0.0",
   "description": "Utilitaires communs serveur NodeJS pour MilleGrilles",
   "author": "dugrema",
   "license": "MIT",
@@ -45,7 +45,8 @@
     "dist"
   ],
   "peerDependencies": {
-    "@dugrema/millegrilles.utiljs": "https://github.com/dugrema/millegrilles.utiljs.git#2021.1.0",
+    "@dugrema/millegrilles.utiljs": "https://github.com/dugrema/millegrilles.utiljs.git#2022.0.0",
+    "@dugrema/node-forge": "github:dugrema/forge#ed25519",
     "amqplib": "^0.8.0",
     "axios": "^0.24.0",
     "base64url": "^3.0.1",
@@ -55,7 +56,7 @@
     "express-socket.io-session": "^1.3.5",
     "fido2-lib": "^2.6.8",
     "morgan": "^1.10.0",
-    "node-forge": "^0.10.0",
+    "node-forge": "^1.0.0",
     "redis": "^3.1.2",
     "socket.io": "^4.4.0",
     "spdy": "^4.0.2",
