@@ -5,7 +5,8 @@ import debugLib from 'debug'
 import forge from 'node-forge'
 import { StringDecoder } from 'string_decoder'
 import {
-  forgecommon, formatteurMessage, validateurMessage, hachage, 
+  forgecommon, formatteurMessage, validateurMessage, 
+  hacherCertificat, // hachage, 
   // Chiffrage
   creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles,
 } from '@dugrema/millegrilles.utiljs'
@@ -17,7 +18,7 @@ import {
 
 const {splitPEMCerts, FormatteurMessage} = formatteurMessage
 const { verifierMessage } = validateurMessage
-const { hacherCertificat } = hachage
+// const { hacherCertificat } = hachage
 // const { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } = chiffrage
 
 // const REPERTOIRE_CERTS_TMP = tmp.dirSync().name
