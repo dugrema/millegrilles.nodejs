@@ -376,7 +376,7 @@ export default class MilleGrillesPKI {
       }
 
     } else {
-      debug("Fichier certificat existe deja pour certificat (%s.pem)", fingerprintBase58)
+      debug("Certificat (%s) existe deja dans redis", fingerprintBase58)
       return fingerprintBase58
     }
   }
@@ -492,7 +492,7 @@ async function chargerCertificatFS(redisClient, fingerprint) {
         if( ! fingerprintMatch ) {
           // Supprimer certificat invalide
           redisClient.del(cleCert)
-          return reject('Fingerprint ' + fingerprintCalcule + ' ne correspond pas au fichier : ' + fingerprint + '.pem. Fichier supprime.');
+          return reject('Fingerprint ' + fingerprintCalcule + ' ne correspond pas a : ' + fingerprint + '. Entree supprimee de redis.');
         }
 
         // Touch - reset expiration
