@@ -46,7 +46,7 @@
     "src/hachage.js"
   ],
   "peerDependencies": {
-    "@dugrema/millegrilles.utiljs": "https://github.com/dugrema/millegrilles.utiljs.git#2022.0.0",
+    "@dugrema/millegrilles.utiljs": "https://github.com/dugrema/millegrilles.utiljs#2022.0.0",
     "@dugrema/node-forge": "github:dugrema/forge#ed25519",
     "amqplib": "^0.8.0",
     "axios": "^0.24.0",
