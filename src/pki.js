@@ -2,13 +2,14 @@ import debugLib from 'debug'
 
 // const debug = require('debug')('millegrilles:common:pki')
 // const crypto = require('crypto')
-import forge from 'node-forge'
+import forge from '@dugrema/node-forge'
 import { StringDecoder } from 'string_decoder'
 import {
   forgecommon, formatteurMessage, validateurMessage, 
   hacherCertificat, // hachage, 
   // Chiffrage
   creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles,
+  chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
 } from '@dugrema/millegrilles.utiljs'
 
 // import {splitPEMCerts, FormatteurMessage} from './formatteurMessage'
@@ -105,11 +106,13 @@ export default class MilleGrillesPKI {
     let cle = this.cle
     if(this.password) {
       debug("Cle chiffree")
-      this.cleForge = forge.pki.decryptRsaPrivateKey(cle, this.password)
+      // this.cleForge = forge.pki.decryptRsaPrivateKey(cle, this.password)
+      this.cleForge = chargerPemClePriveeEd25519(cle, {password: this.password})
       // Re-exporter la cle en format PEM dechiffre (utilise par RabbitMQ, formatteur)
-      this.cle = forge.pki.privateKeyToPem(this.cleForge)
+      this.cle = exporterPemClePriveeEd25519(this.cleForge)
     } else {
-      this.cleForge = forge.pki.privateKeyFromPem(cle)
+      // this.cleForge = forge.pki.privateKeyFromPem(cle)
+      this.cleForge = chargerPemClePriveeEd25519(cle)
     }
 
     // Creer instance de formatteur de messages
@@ -202,7 +205,7 @@ export default class MilleGrillesPKI {
     // utilise par ce noeud. Sert a verifier la signature des transactions.
     let transactionCertificat = {
         fingerprint: this.fingerprint,
-        // chaine_pem: this.chaineCertificatsList,
+        chaine_pem: this.chaineCertificatsList,
         attache: true,
     }
 

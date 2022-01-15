@@ -174,7 +174,7 @@ export default class GestionnaireCertificatMessages {
       this.mq.transmettreReponse(messageCertificat, properties.replyTo, properties.correlationId)
     } else {
       // Il n'y a pas de demandeur specifique, on emet le certificat
-      let messageJSONStr = JSON.stringify(messageCertificat)
+      // let messageJSONStr = JSON.stringify(messageCertificat)
       //this.mq._publish(MG_ROUTING_EMETTRE_CERTIFICAT, messageJSONStr)
       this.mq.emettreEvenement(messageCertificat, 'certificat', {action: 'infoCertificat', attacherCertificat: true})
         .then(()=>{
