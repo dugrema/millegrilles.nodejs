@@ -17,7 +17,7 @@ import {
 // import { hacherCertificat } from './hachage'
 // import { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } from './chiffrage'
 
-const {splitPEMCerts, FormatteurMessage} = formatteurMessage
+const {splitPEMCerts, FormatteurMessageEd25519} = formatteurMessage
 const { verifierMessage } = validateurMessage
 // const { hacherCertificat } = hachage
 // const { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } = chiffrage
@@ -116,7 +116,7 @@ export default class MilleGrillesPKI {
     }
 
     // Creer instance de formatteur de messages
-    this.formatteurMessage = new FormatteurMessage(this.chainePEM, this.cle)
+    this.formatteurMessage = new FormatteurMessageEd25519(this.chainePEM, this.cle)
   }
 
   // _verifierCertificat() {
