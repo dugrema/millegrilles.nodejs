@@ -60,6 +60,7 @@ export default class MilleGrillesPKI {
     this.cert = null      // Objet certificat charge en memoire (forge)
     this.caForge = null   // CA (certificat de MilleGrille)
     this.caStore = null   // CA store pour valider les chaines de certificats
+    this.caCertificateStore = null  // instance CertificateStore
 
     // Cle : fingerprintb58, value = { ts (date millisecs), chaineForge:[...certForge] }
     this.cacheCertsParFingerprint = {}
@@ -197,6 +198,9 @@ export default class MilleGrillesPKI {
     let parsedCACert = forge.pki.certificateFromPem(this.ca)
     this.caForge = parsedCACert
     this.caStore = forge.pki.createCaStore([parsedCACert])
+
+    // Objet different pour valide certs, supporte date null
+    this.caCertificateStore = new forgecommon.CertificateStore(parsedCACert, {DEBUG: true})
 
   }
 
@@ -465,6 +469,21 @@ export default class MilleGrillesPKI {
     // Conserver nouvelle version du cache
     debug("Maintenance cache amqpdao.pki (%d keys left)", Object.keys(cacheCertsParFingerprint).length)
     this.cacheCertsParFingerprint = cacheCertsParFingerprint
+  }
+
+  validerCertificat(chainePem, opts) {
+    opts = opts || {}
+    let validityCheckDate = new Date()
+    if(opts.validityCheckDate !== undefined) {
+      validityCheckDate = opts.validityCheckDate
+    }
+    
+    // Verifier la chaine
+    // Retourne le certificat (forge) si valide
+    // retourne false si certificat invalide
+    const certificat = this.caCertificateStore.verifierChaine(chainePem, {validityCheckDate})
+
+    return certificat
   }
 
 }
