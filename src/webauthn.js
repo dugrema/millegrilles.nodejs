@@ -6,7 +6,7 @@ import { Fido2Lib } from 'fido2-lib'
 
 import { hachage, constantes } from '@dugrema/millegrilles.utiljs'
 
-const { hacherMessageSync } = hachage
+// const { hacherMessageSync } = hachage
 const { CONST_COMMANDE_AUTH, CONST_COMMANDE_SIGNER_CSR } = constantes
 
 const debug = debugLib('millegrilles:webauthn')
@@ -15,7 +15,7 @@ const debug = debugLib('millegrilles:webauthn')
 var _f2l = null
 var _hostname = null
 
-function init(hostname, idmg, opts) {
+export function init(hostname, idmg, opts) {
   opts = opts || {}
   debug("common.webauthn Init hostname: %s, idmg: %s, opts: %O", hostname, idmg, opts)
 
@@ -156,7 +156,7 @@ export async function verifierChallenge(challengeInfo, compteUsager, clientAsser
 
   if(demandeCertificat) {
     debug("Reponse avec challenge de signature, on recalcule les 65 premiers bytes pour la verification")
-    const hachageDemandeCert = hacherMessageSync(demandeCertificat)
+    const hachageDemandeCert = await hacherMessage(demandeCertificat, {bytesOnly: true})
     debug("Hachage demande cert %O = %O", hachageDemandeCert, demandeCertificat)
     challengeBuffer[0] = CONST_COMMANDE_SIGNER_CSR
     challengeBuffer.set(hachageDemandeCert, 1)  // Override bytes 1-65 du challenge

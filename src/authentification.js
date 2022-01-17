@@ -16,6 +16,8 @@ const CONST_CHALLENGE_CERTIFICAT = 'challengeCertificat',
       CONST_AUTH_SECONDAIRE = 'authentificationSecondaire',
       CONST_WEBAUTHN_CHALLENGE = 'webauthnChallenge'
 
+export { CONST_CHALLENGE_CERTIFICAT, CONST_AUTH_PRIMAIRE, CONST_AUTH_SECONDAIRE, CONST_WEBAUTHN_CHALLENGE }
+
 export async function verifierUsager(socket, params) {
   /*
   Verifier l'existence d'un usager par methode http.
@@ -320,7 +322,7 @@ export async function veriferUpgradeProtegerApp(socket, params, opts) {
   params = params || {}
   opts = opts || {}
 
-  // debug("upgradeProteger, params : %O", params)
+  debug("upgradeProteger, params : %O", params)
   const session = socket.handshake.session,
         userId = socket.userId,
         nomUsager = socket.nomUsager,
@@ -421,17 +423,20 @@ export async function veriferUpgradeProtegerApp(socket, params, opts) {
 //   return resultat
 // }
 
-export async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody) {
+export async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody, opts) {
+  opts = opts || {}
   debug("verifierSignatureCertificat : idmg=%s", idmg)
 
   if( ! challengeSession || ! challengeBody ) return false
 
-  const { cert: certificat, idmg: idmgChaine } = await validerChaineCertificats(chainePem)
+  const { cert: certificat, idmg: idmgChaine } = await validerChaineCertificats(chainePem, opts)
 
   const nomUsager = certificat.subject.getField('CN').value,
         organizationalUnit = certificat.subject.getField('OU').value,
         extensions = await extraireExtensionsMillegrille(certificat),
         userId = extensions.userId
+
+  debug("verifierSignatureCertificat userId: %s, cert: %O", userId, chainePem)
 
   if(!idmg || idmg !== idmgChaine) {
     console.error("Le certificat ne correspond pas a la millegrille : idmg %s !== %s", idmg, idmgChaine)
