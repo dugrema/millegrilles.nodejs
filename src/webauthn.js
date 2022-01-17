@@ -156,7 +156,7 @@ export async function verifierChallenge(challengeInfo, compteUsager, clientAsser
 
   if(demandeCertificat) {
     debug("Reponse avec challenge de signature, on recalcule les 65 premiers bytes pour la verification")
-    const hachageDemandeCert = await hacherMessage(demandeCertificat, {bytesOnly: true})
+    const hachageDemandeCert = await hacherMessage(demandeCertificat, {bytesOnly: true, hashingCode: 'blake2b-512'})
     debug("Hachage demande cert %O = %O", hachageDemandeCert, demandeCertificat)
     challengeBuffer[0] = CONST_COMMANDE_SIGNER_CSR
     challengeBuffer.set(hachageDemandeCert, 1)  // Override bytes 1-65 du challenge
