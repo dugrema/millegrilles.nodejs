@@ -4,10 +4,10 @@ import multibase from 'multibase'
 import base64url from 'base64url'
 import { Fido2Lib } from 'fido2-lib'
 
-import { hachage, constantes } from '@dugrema/millegrilles.utiljs'
+import { formatteurMessage, constantes } from '@dugrema/millegrilles.utiljs'
 
-// const { hacherMessageSync } = hachage
 const { CONST_COMMANDE_AUTH, CONST_COMMANDE_SIGNER_CSR } = constantes
+const { hacherMessage } = formatteurMessage
 
 const debug = debugLib('millegrilles:webauthn')
 
