@@ -37,3 +37,5 @@ const hacheurs = {
 }
 
 setHacheurs(hacheurs)
+
+export { hacheurs }
