@@ -51,7 +51,7 @@
     "amqplib": "^0.8.0",
     "axios": "^0.24.0",
     "base64url": "^3.0.1",
-    "blake2": "^4.0.2",
+    "blake2": "github:dugrema/node-blake2",
     "connect-redis": "^6.0.0",
     "crypto": "^1.0.1",
     "express-session": "^1.17.2",
