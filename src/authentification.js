@@ -264,14 +264,16 @@ export async function auditMethodes(req, params, opts) {
 
 export async function upgradeProtegeCertificat(socket, params) {
   // const compteUsager = await comptesUsagersDao.chargerCompte(socket.nomUsager)
+  params = params || {}
   const session = socket.handshake.session
   const challengeSession = session[CONST_CHALLENGE_CERTIFICAT],
-        idmg = socket.amqpdao.pki.idmg
+        idmg = socket.amqpdao.pki.idmg,
+        certCa = socket.amqpdao.pki.ca
 
   debug("authentification.upgradeProtegeCertificat Params recus : %O, challenge session %O", params, challengeSession)
 
   const resultat = await verifierSignatureCertificat(
-    idmg, params._certificat, challengeSession, params)
+    idmg, params._certificat, challengeSession, params, {certCa})
 
   debug("upgradeProtegeCertificat: Resultat = %O", resultat)
 
@@ -327,7 +329,8 @@ export async function veriferUpgradeProtegerApp(socket, params, opts) {
         userId = socket.userId,
         nomUsager = socket.nomUsager,
         authScore = socket.authScore,
-        challengeSocket = socket[CONST_CHALLENGE_CERTIFICAT]
+        challengeSocket = socket[CONST_CHALLENGE_CERTIFICAT],
+        certCa = socket.amqpdao.pki.ca
 
   if(!challengeSocket) {
     debug("Challenge socket n'a pas ete genere")
@@ -345,7 +348,7 @@ export async function veriferUpgradeProtegerApp(socket, params, opts) {
     // Permet de revalider le mode protege avec le certificat de navigateur
 
     const resultat = await verifierSignatureCertificat(
-      idmg, params._certificat, challengeSocket, params)
+      idmg, params._certificat, challengeSocket, params, {certCa})
 
     debug("upgradeProtegeCertificat: Resultat = %O", resultat)
 
@@ -425,7 +428,7 @@ export async function veriferUpgradeProtegerApp(socket, params, opts) {
 
 export async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody, opts) {
   opts = opts || {}
-  debug("verifierSignatureCertificat : idmg=%s", idmg)
+  debug("verifierSignatureCertificat : idmg=%s, opts: %O", idmg, opts)
 
   if( ! challengeSession || ! challengeBody ) return false
 
