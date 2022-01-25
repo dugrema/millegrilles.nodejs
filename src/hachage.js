@@ -38,4 +38,4 @@ const hacheurs = {
 
 setHacheurs(hacheurs)
 
-export { hacheurs }
+export default hacheurs
