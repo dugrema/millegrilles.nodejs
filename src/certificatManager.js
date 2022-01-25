@@ -1,8 +1,10 @@
 import debugLib from 'debug'
-import forge from 'node-forge'
+// import { pki } from '@dugrema/node-forge'
+import { validateurMessage } from '@dugrema/millegrilles.utiljs'
+
+const { pki } = require('@dugrema/node-forge')
 
 const debug = debugLib('millegrilles:common:certificatmanager')
-const { validateurMessage } = require('@dugrema/millegrilles.utiljs')
 
 const MG_ROUTING_EMETTRE_CERTIFICAT = 'evenement.certificat.infoCertificat'
 
@@ -149,7 +151,7 @@ export default class GestionnaireCertificatMessages {
         let json_message = JSON.parse(messageContent);
         // console.debug("Reponse cert maitre des cles");
         // console.debug(messageContent);
-        const cert = forge.pki.certificateFromPem(json_message.certificat);
+        const cert = pki.certificateFromPem(json_message.certificat);
         objet_crypto.certificatMaitreDesCles = {
           expiration: tempsCourant + 120000,
           cert,

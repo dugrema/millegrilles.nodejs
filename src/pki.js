@@ -2,7 +2,6 @@ import debugLib from 'debug'
 
 // const debug = require('debug')('millegrilles:common:pki')
 // const crypto = require('crypto')
-import forge from '@dugrema/node-forge'
 import { StringDecoder } from 'string_decoder'
 import {
   forgecommon, formatteurMessage, validateurMessage, 
@@ -11,6 +10,8 @@ import {
   creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles,
   chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
 } from '@dugrema/millegrilles.utiljs'
+
+const { pki } = require('@dugrema/node-forge')
 
 // import {splitPEMCerts, FormatteurMessage} from './formatteurMessage'
 // import { verifierMessage } from './validateurMessage'
@@ -107,12 +108,12 @@ export default class MilleGrillesPKI {
     let cle = this.cle
     if(this.password) {
       debug("Cle chiffree")
-      // this.cleForge = forge.pki.decryptRsaPrivateKey(cle, this.password)
+      // this.cleForge = pki.decryptRsaPrivateKey(cle, this.password)
       this.cleForge = chargerPemClePriveeEd25519(cle, {password: this.password})
       // Re-exporter la cle en format PEM dechiffre (utilise par RabbitMQ, formatteur)
       this.cle = exporterPemClePriveeEd25519(this.cleForge)
     } else {
-      // this.cleForge = forge.pki.privateKeyFromPem(cle)
+      // this.cleForge = pki.privateKeyFromPem(cle)
       this.cleForge = chargerPemClePriveeEd25519(cle)
     }
 
@@ -174,7 +175,7 @@ export default class MilleGrillesPKI {
     debug(certs)
     this.certPEM = certs[0]
 
-    let parsedCert = forge.pki.certificateFromPem(this.certPEM)
+    let parsedCert = pki.certificateFromPem(this.certPEM)
 
     this.idmg = parsedCert.issuer.getField("O").value
     debug("IDMG %s", this.idmg)
@@ -189,15 +190,15 @@ export default class MilleGrillesPKI {
     const certsIntermediaires = []
     for(let idx in certsChaineCAList) {
       var certIntermediaire = certsChaineCAList[idx]
-      let intermediaire = forge.pki.certificateFromPem(certIntermediaire)
+      let intermediaire = pki.certificateFromPem(certIntermediaire)
       certsIntermediaires.push(intermediaire)
     }
     this.caIntermediaires = certsIntermediaires
 
     // Creer le CA store pour verifier les certificats.
-    let parsedCACert = forge.pki.certificateFromPem(this.ca)
+    let parsedCACert = pki.certificateFromPem(this.ca)
     this.caForge = parsedCACert
-    this.caStore = forge.pki.createCaStore([parsedCACert])
+    this.caStore = pki.createCaStore([parsedCACert])
 
     // Objet different pour valide certs, supporte date null
     this.caCertificateStore = new forgecommon.CertificateStore(parsedCACert, {DEBUG: true})
@@ -322,7 +323,7 @@ export default class MilleGrillesPKI {
 
     if(!fingerprintBase58) {
       // Calculer hachage du cerficat
-      const cert = forge.pki.certificateFromPem(chaine_pem[0])
+      const cert = pki.certificateFromPem(chaine_pem[0])
       fingerprintBase58 = await hacherCertificat(cert)
     }
 
@@ -352,7 +353,7 @@ export default class MilleGrillesPKI {
       const store = new forgecommon.CertificateStore(this.ca)
       if(store.verifierChaine(chaine_pem, {validityCheckDate: null})) {
         const chaineCerts = chaine_pem.map(pem=>{
-          return forge.pki.certificateFromPem(pem)
+          return pki.certificateFromPem(pem)
         })
         let certificat = chaineCerts[0]
         let fingerprint = await hacherCertificat(certificat)
@@ -410,7 +411,7 @@ export default class MilleGrillesPKI {
         // Valider le certificat avec le store
         let valide = true
         try {
-          forge.pki.verifyCertificateChain(this.caStore, chaine)
+          pki.verifyCertificateChain(this.caStore, chaine)
           const certCache = {ts: new Date().getTime(), chaineForge: chaine}
           // debug("getCertificate: Ajouter certificat au cache : %O", certCache)
           this.cacheCertsParFingerprint[fingerprintEffectif] = certCache
@@ -500,7 +501,7 @@ async function chargerCertificatFS(redisClient, fingerprint) {
       try {
         const listePems = JSON.parse(data)   //splitPEMCerts(data)
         const chaineForge = listePems.map(pem=>{
-          return forge.pki.certificateFromPem(pem)
+          return pki.certificateFromPem(pem)
         })
 
         const fingerprintCalcule = await hacherCertificat(listePems[0])
