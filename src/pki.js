@@ -7,7 +7,9 @@ import {
   forgecommon, formatteurMessage, validateurMessage, 
   hacherCertificat, // hachage, 
   // Chiffrage
-  creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles,
+  //creerCipher, 
+  preparerCipher,
+  dechiffrerCleSecreteForge, preparerCommandeMaitrecles,
   chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
 } from '@dugrema/millegrilles.utiljs'
 
@@ -253,34 +255,8 @@ export class MilleGrillesPKI {
     return contenuDechiffreString
   }
 
-  // async creerCipherChiffrageAsymmetrique(certificats) {
-  //
-  //   const keyIv = await new Promise((resolve, reject) => {
-  //     this.genererKeyAndIV((err, keyIv)=>{
-  //       if(err) return reject(err)
-  //       resolve(keyIv)
-  //     })
-  //   })
-  //
-  //   const cipher = crypto.createCipheriv(this.algorithm, keyIv.key, keyIv.iv)
-  //
-  //   // Encoder la cle secrete
-  //   const iv = keyIv.iv.toString('base64')
-  //
-  //   const certClesChiffrees = {}
-  //   certificats.forEach(certs=>{
-  //     const certPem = certs[0]
-  //     const cert = this.chargerCertificatPEM(certPem)
-  //     const fingerprint = getCertificateFingerprints(cert).fingerprintSha256B64
-  //     var encryptedSecretKey = this.crypterContenuAsymetric(cert.publicKey, keyIv.key);
-  //     certClesChiffrees[fingerprint] = encryptedSecretKey
-  //   })
-  //
-  //   return({cipher, certClesChiffrees, iv})
-  // }
-
   async creerCipherChiffrageAsymmetrique(certificatsPem, domaine, identificateurs_document, opts) {
-    const cipher = await creerCipher()
+    const cipher = await preparerCipher({clePubliqueEd25519})
 
     const cipherWrapper = {
       update: cipher.update,

@@ -1,9 +1,23 @@
 // Sanity test de chiffrage.ciphers.js
 import '../src/chiffrage.ciphers'
-import { chiffrer, dechiffrer, ed25519 as utiljsEd25519, preparerCipher, preparerDecipher } from '@dugrema/millegrilles.utiljs'
+import { 
+    chiffrer, dechiffrer, ed25519 as utiljsEd25519, preparerCipher, preparerDecipher,
+    preparerCommandeMaitrecles,
+    genererClePrivee, genererCertificatMilleGrille
+} from '@dugrema/millegrilles.utiljs'
 import nodeforge from '@dugrema/node-forge'
+import { base64 } from 'multiformats/bases/base64'
 
 const { ed25519 } = nodeforge
+
+async function genererCert() {
+    const clePrivee = genererClePrivee()
+    console.debug("Cle privee pem : %O", clePrivee)
+    const certInfo = await genererCertificatMilleGrille(clePrivee.pem)
+    console.debug("certInfo: %O", certInfo)
+    return {...certInfo, clePrivee}
+}
+
 
 test('chiffrage/dechiffrage contenu one-pass', async () => {
     console.debug("Test chiffrage/dechiffrage")
@@ -90,4 +104,31 @@ test('chiffrage/dechiffrage cipher incremental cle ed25519', async () => {
 
     expect.assertions(1)
     expect(secretKey).toEqual(cleSecretRederivee)
+})
+
+test('preparer commande maitrecles', async () => {
+
+    // Generer 2 certs pour simuler chiffrage avec cert maitredescles et cert millegrille
+    const certMillegrille = await genererCert()
+    const certMaitredescles = await genererCert()
+
+    console.debug("Cert millegrille: %O", certMillegrille.pem)
+    console.debug("Cert maitre des cles: %O", certMaitredescles.pem)
+
+    const certificatsPem = [certMaitredescles.pem, certMillegrille.pem]
+    const opts = {}
+
+    const password = base64.encode(new Uint8Array(32)),
+          iv = base64.encode(new Uint8Array(12)),
+          tag = base64.encode(new Uint8Array(16)),
+          hachage_bytes = base64.encode(new Uint8Array(64)),
+          identificateurs_document = {'mondoc': 'doctest'},
+          domaine = 'Test'
+
+    const commande = await preparerCommandeMaitrecles(
+        certificatsPem, password, domaine, hachage_bytes, iv, tag, identificateurs_document, opts)
+    console.debug("Commande maitre des cles : %O", commande)
+
+    expect.assertions(1)
+    expect(Object.values(commande.cles).length).toBe(2)
 })
