@@ -33,7 +33,7 @@ const PEM_CERT_FIN = '-----END CERTIFICATE-----'
 const EXPIRATION_CERTCACHE = 2 * 60000,   // 2 minutes en millisecs
       EXPIRATION_REDIS_CERT = ''+(48 * 60 * 60)  // 48 heures en secondes
 
-export default class MilleGrillesPKI {
+export class MilleGrillesPKI {
   // Classe qui supporte des operations avec certificats et cles privees.
 
   constructor() {

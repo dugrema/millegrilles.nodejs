@@ -19,7 +19,7 @@ const EXPIRATION_MESSAGE_DEFAUT = 15 * 60 * 1000  // 15 minutes en millisec
 const debug = debugLib('millegrilles:common:amqpdao')
 const debugMessages = debugLib('millegrilles:common:amqpdao:messages')
 
-export default class MilleGrillesAmqpDAO {
+export class MilleGrillesAmqpDAO {
 
   constructor(pki, opts) {
     this.pki = pki;
