@@ -71,7 +71,7 @@ test('chiffrage/dechiffrage contenu cipher incremental', async () => {
     expect(message).toEqual(messageDechiffre)
 })
 
-test('chiffrage/dechiffrage contenu cipher incremental', async () => {
+test('chiffrage/dechiffrage cipher incremental cle ed25519', async () => {
     console.debug("Test chiffrage/dechiffrage")
 
     const { publicKey, privateKey } = ed25519.generateKeyPair()
