@@ -11,7 +11,7 @@
     "node": ">=16"
   },
   "scripts": {
-    "test": "jest"
+    "test": "DEBUG=millegrilles:* jest"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",

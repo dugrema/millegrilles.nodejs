@@ -4,35 +4,58 @@ const { MilleGrillesPKI } = require('../src/pki')
 const { 
     chiffrer, dechiffrer, ed25519: utiljsEd25519, preparerCipher, preparerDecipher,
     preparerCommandeMaitrecles,
-    genererClePrivee, genererCertificatMilleGrille
+    genererClePrivee, genererCertificatMilleGrille, genererCsrNavigateur, genererCertificatIntermediaire
 } = require('@dugrema/millegrilles.utiljs')
 
-async function genererCert() {
+async function genererCert(ca) {
     const clePrivee = genererClePrivee()
     console.debug("Cle privee pem : %O", clePrivee)
-    const certInfo = await genererCertificatMilleGrille(clePrivee.pem)
-    console.debug("certInfo: %O", certInfo)
-    return {...certInfo, clePrivee}
+    if(ca) {
+        const csr = await genererCsrNavigateur('dummy', clePrivee.pem)
+        console.debug("CA : %O", ca)
+        const certPem = await genererCertificatIntermediaire(csr, ca.pem, ca.clePrivee.privateKey)
+        return {pem: certPem, clePrivee}
+    } else {
+        const certInfo = await genererCertificatMilleGrille(clePrivee.pem)
+        console.debug("certInfo: %O", certInfo)
+        return {...certInfo, clePrivee}
+    }
 }
 
 test('creerCipher', async () => {
 
     // Generer 2 certs pour simuler chiffrage avec cert maitredescles et cert millegrille
     const certMillegrille = await genererCert()
-    const certMaitredescles = await genererCert()
+    const certLocal = await genererCert(certMillegrille)
+    const certMaitredescles = await genererCert(certMillegrille)
 
     console.debug("Cert Millegrille genere : %O", certMillegrille)
     console.debug("Cert maitre des cles genere : %O", certMaitredescles)
     
     const configCert = {
         millegrille: certMillegrille.pem,
-        cert: certMaitredescles.pem,
-        key: certMaitredescles.clePrivee.pem
+        cert: certLocal.pem,
+        key: certLocal.clePrivee.pem
     }
 
-    //const pki = new MilleGrillesPKI()
-//    await pki.initialiserPkiPEMS(configCert)
+    const pki = new MilleGrillesPKI()
+    await pki.initialiserPkiPEMS(configCert)
+
+    const message = new Uint8Array(20)  // 20 bytes, tous 0x0
+    try {
+        // Chiffrer
+        const cipher = await pki.creerCipherChiffrageAsymmetrique([certMaitredescles.pem], 'TestDomaine', {cleDoc: 'valeurDummy'})
+        console.debug("Cipher : %O", cipher)
+        const ciphertext = await cipher.update(message)
+        const outputCipher = await cipher.finalize()
+
+        console.debug("Ciphertext : %O\nOutput: %O", ciphertext, outputCipher)
+
+        // Dechiffrer
 
 
-
+    } finally {
+        // Cleanup
+        pki.fermer()
+    }
 })

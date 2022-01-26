@@ -4,7 +4,7 @@ const debug = require('debug')('millegrilles:common:pki')
 // const crypto = require('crypto')
 const { StringDecoder } = require('string_decoder')
 const {
-  forgecommon, formatteurMessage, validateurMessage, 
+  forgecommon, formatteurMessage, validateurMessage, encoderIdmg,
   hacherCertificat, // hachage, 
   // Chiffrage
   //creerCipher, 
@@ -82,8 +82,6 @@ class MilleGrillesPKI {
 
     // Client redis pour caching - optionnel, permet de stocker les certificats
     this.redisClient = null
-
-    this.intervalleMaintenanceCache = setInterval(()=>{this.maintenanceCache()}, 60000)
   }
 
   async initialiserPkiPEMS(certs) {
@@ -107,7 +105,7 @@ class MilleGrillesPKI {
     // });
 
     // Charger le certificat pour conserver commonName, fingerprint
-    await this._initialiserStoreCa(certs)
+    await this._initialiserStoreCa(this.chainePEM, this.ca)
 
     let cle = this.cle
     if(this.password) {
@@ -123,6 +121,13 @@ class MilleGrillesPKI {
 
     // Creer instance de formatteur de messages
     this.formatteurMessage = new FormatteurMessageEd25519(this.chainePEM, this.cle)
+
+    // Initialiser maintenance cache
+    this.intervalleMaintenanceCache = setInterval(()=>{this.maintenanceCache()}, 60000)
+  }
+
+  fermer() {
+    clearInterval(this.intervalleMaintenanceCache)
   }
 
   // _verifierCertificat() {
@@ -171,19 +176,15 @@ class MilleGrillesPKI {
     return verifierMessage(message, certificat)
   }
 
-  async _initialiserStoreCa(certPems) {
+  async _initialiserStoreCa(certPem) {
 
     // Charger certificat local
-    var certs = splitPEMCerts(certPems.cert)
+    var certs = splitPEMCerts(certPem)
     this.chaineCertificatsList = certs
-    debug("Certificat CA local: %O", certs)
-    console.debug("Certificat CA local: %O", certs)
+    debug("Certificat local: %O", certs)
     this.certPEM = certs[0]
 
     let parsedCert = pki.certificateFromPem(this.certPEM)
-
-    this.idmg = parsedCert.issuer.getField("O").value
-    debug("IDMG %s", this.idmg)
 
     const fingerprint = await hacherCertificat(parsedCert)
     this.fingerprint = fingerprint
@@ -200,15 +201,19 @@ class MilleGrillesPKI {
     }
     this.caIntermediaires = certsIntermediaires
 
+    // Recalculer IDMG, calculer fingerprint
+    this.idmg = await encoderIdmg(this.ca)
+    this.fingerprintCa = await hacherCertificat(parsedCert)
+    const localCertIdmg = parsedCert.subject.getField("O").value
+    debug("IDMG CA %s, IDMG local cert %s", this.idmg, localCertIdmg)
+    if(localCertIdmg !== this.idmg) throw new Error(`Cert local IDMG: ${localCertIdmg} ne correspond pas au CA ${this.idmg}`)
+
     // Creer le CA store pour verifier les certificats.
     let parsedCACert = pki.certificateFromPem(this.ca)
-    this.fingerprintCa = await hacherCertificat(parsedCert)
     this.caForge = parsedCACert
     this.caStore = pki.createCaStore([parsedCACert])
-
     // Objet different pour valide certs, supporte date null
     this.caCertificateStore = new forgecommon.CertificateStore(parsedCACert, {DEBUG: true})
-
   }
 
   preparerMessageCertificat() {
@@ -261,30 +266,31 @@ class MilleGrillesPKI {
   }
 
   async creerCipherChiffrageAsymmetrique(certificatsPem, domaine, identificateurs_document, opts) {
-    const publicKeyBytesMillegrille = this.parsedCACert.publicKeyBytes
-    const cipher = await preparerCipher({clePubliqueEd25519: publicKeyBytesMillegrille})
+    const publicKeyBytesMillegrille = this.caForge.publicKey.publicKeyBytes
+    const cipherInst = await preparerCipher({clePubliqueEd25519: publicKeyBytesMillegrille}),
+          cipher = cipherInst.cipher
+
+    console.debug("!!!5 Cipher : %O", cipherInst)
 
     const cipherWrapper = {
       update: cipher.update,
       finalize: async () => {
         const infoChiffrage = await cipher.finalize()
-        const meta = infoChiffrage.meta
-
-        console.debug("Info meta cipher : %O", meta)
+        console.debug("Info chiffrage : %O", infoChiffrage)
 
         // Chiffrer le password avec les certificats
         const commandeMaitreCles = await preparerCommandeMaitrecles(
           certificatsPem,
-          infoChiffrage.password, domaine, meta.hachage_bytes, meta.iv, meta.tag,
+          cipherInst.secretKey, domaine, infoChiffrage.hachage, cipherInst.iv, infoChiffrage.tag,
           identificateurs_document,
           opts
         )
 
         // Remplacer cle chiffree de millegrille par peerPublic (secretChiffre)
         const cles = commandeMaitreCles.cles
-        cles[this.fingerprintCa] = cipher.secretChiffre
+        cles[this.fingerprintCa] = cipherInst.secretChiffre
 
-        return {meta, commandeMaitreCles}
+        return commandeMaitreCles
       }
     }
 
