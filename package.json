@@ -5,19 +5,12 @@
   "author": "dugrema",
   "license": "MIT",
   "repository": "dugrema/millegrilles.nodejs",
-  "main": "dist/index.cjs",
-  "module": "dist/index.modern.js",
+  "main": "src/index.js",
   "source": "src/index.js",
-  "exports": {
-    "require": "./dist/index.js",
-    "default": "./dist/index.modern.js"
-  },
   "engines": {
     "node": ">=16"
   },
   "scripts": {
-    "build": "microbundle --format modern,cjs",
-    "start": "microbundle watch --no-compress --format modern,cjs",
     "test": "jest"
   },
   "devDependencies": {
@@ -35,7 +28,6 @@
     "eslint-plugin-standard": "^4.0.1",
     "gh-pages": "^2.2.0",
     "jest": "^27.4.7",
-    "microbundle": "^0.14.2",
     "multiformats": "^9.6.2",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.0.4"
