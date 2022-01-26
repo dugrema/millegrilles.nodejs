@@ -2,7 +2,8 @@ const debug = require('debug')('millegrilles:common:pki')
 
 // const debug = require('debug')('millegrilles:common:pki')
 // const crypto = require('crypto')
-const { StringDecoder } = require('string_decoder')
+// const { StringDecoder } = require('string_decoder')
+const { base64 } = require('multiformats/bases/base64')
 const {
   forgecommon, formatteurMessage, validateurMessage, encoderIdmg,
   hacherCertificat, // hachage, 
@@ -13,6 +14,7 @@ const {
   preparerCommandeMaitrecles,
   chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
   ed25519,
+  preparerDecipher,
 } = require('@dugrema/millegrilles.utiljs')
 const { pki } = require('@dugrema/node-forge')
 
@@ -201,19 +203,19 @@ class MilleGrillesPKI {
     }
     this.caIntermediaires = certsIntermediaires
 
-    // Recalculer IDMG, calculer fingerprint
-    this.idmg = await encoderIdmg(this.ca)
-    this.fingerprintCa = await hacherCertificat(parsedCert)
-    const localCertIdmg = parsedCert.subject.getField("O").value
-    debug("IDMG CA %s, IDMG local cert %s", this.idmg, localCertIdmg)
-    if(localCertIdmg !== this.idmg) throw new Error(`Cert local IDMG: ${localCertIdmg} ne correspond pas au CA ${this.idmg}`)
-
     // Creer le CA store pour verifier les certificats.
     let parsedCACert = pki.certificateFromPem(this.ca)
     this.caForge = parsedCACert
     this.caStore = pki.createCaStore([parsedCACert])
     // Objet different pour valide certs, supporte date null
     this.caCertificateStore = new forgecommon.CertificateStore(parsedCACert, {DEBUG: true})
+
+    // Recalculer IDMG, calculer fingerprint
+    this.idmg = await encoderIdmg(this.ca)
+    this.fingerprintCa = await hacherCertificat(parsedCACert)
+    const localCertIdmg = parsedCert.subject.getField("O").value
+    debug("IDMG CA %s, IDMG local cert %s", this.idmg, localCertIdmg)
+    if(localCertIdmg !== this.idmg) throw new Error(`Cert local IDMG: ${localCertIdmg} ne correspond pas au CA ${this.idmg}`)
   }
 
   preparerMessageCertificat() {
@@ -230,47 +232,45 @@ class MilleGrillesPKI {
 
   async decrypterAsymetrique(contenuSecret) {
     // return dechiffrerCleSecreteForge(this.cleForge, contenuSecret)
-    dechiffrerCle(contenuSecret, this.cleForge.privateKeyBytes)
+    return dechiffrerCle(contenuSecret, this.cleForge.privateKeyBytes)
   }
 
-  async dechiffrerContenuAsymetric(cleChiffree, iv, tag, contenuChiffre) {
-    debug("dechiffrerContenuAsymetric: Cle secrete: %s\nIV: %s, Tag: %s\ncontenuChiffre: %O", cleSecrete, iv, tag, contenuChiffre)
-    const cleSecreteDechiffree = await this.decrypterAsymetrique(cleChiffree)
-    // debug("Cle secrete dechiffree : %O", cleSecreteDechiffree)
+  // async dechiffrerContenuAsymetric(cleChiffree, iv, tag, contenuChiffre) {
+  //   debug("dechiffrerContenuAsymetric: Cle secrete: %s\nIV: %s, Tag: %s\ncontenuChiffre: %O", cleSecrete, iv, tag, contenuChiffre)
+  //   const cleSecreteDechiffree = await this.decrypterAsymetrique(cleChiffree)
+  //   // debug("Cle secrete dechiffree : %O", cleSecreteDechiffree)
 
-    // const cleSecreteDechiffreeBytes = Buffer.from(cleSecreteDechiffree, 'hex')
-    // const cleSecreteDechiffreeBytes = Buffer.from(cleSecreteDechiffree)
-    const cleSecreteDechiffreeBytes = str2ab(cleSecreteDechiffree)
+  //   // const cleSecreteDechiffreeBytes = Buffer.from(cleSecreteDechiffree, 'hex')
+  //   // const cleSecreteDechiffreeBytes = Buffer.from(cleSecreteDechiffree)
+  //   const cleSecreteDechiffreeBytes = str2ab(cleSecreteDechiffree)
 
-    const ivBytes = Buffer.from(iv, 'base64')
-    const bytesChiffreSymmetrique = Buffer.from(contenuChiffre.secret_chiffre || contenuChiffre, 'base64')
+  //   const ivBytes = Buffer.from(iv, 'base64')
+  //   const bytesChiffreSymmetrique = Buffer.from(contenuChiffre.secret_chiffre || contenuChiffre, 'base64')
 
-    debug("Creer decipher secretKey: " + cleSecreteDechiffreeBytes.toString('base64') + ", iv: " + ivBytes.toString('base64'));
-    var decipher = crypto.createDecipheriv('aes-256-cbc', cleSecreteDechiffreeBytes, ivBytes);
+  //   debug("Creer decipher secretKey: " + cleSecreteDechiffreeBytes.toString('base64') + ", iv: " + ivBytes.toString('base64'));
+  //   var decipher = crypto.createDecipheriv('aes-256-cbc', cleSecreteDechiffreeBytes, ivBytes);
 
-    // console.debug("Decrypter " + contenuCrypte.toString('base64'));
-    const decoder = new StringDecoder('utf8');
-    let contenuDecrypte = decipher.update(bytesChiffreSymmetrique, 'base64')
-    let ivDechiffre = contenuDecrypte.slice(0, 16)
-    debug("IV Dechiffre : %O\nIV recu: %O", ivDechiffre, ivBytes)
+  //   // console.debug("Decrypter " + contenuCrypte.toString('base64'));
+  //   const decoder = new StringDecoder('utf8');
+  //   let contenuDecrypte = decipher.update(bytesChiffreSymmetrique, 'base64')
+  //   let ivDechiffre = contenuDecrypte.slice(0, 16)
+  //   debug("IV Dechiffre : %O\nIV recu: %O", ivDechiffre, ivBytes)
 
-    // Comparer le IV pour s'assurer que le dechiffrage est correct
-    if( ! forgecommon.comparerArraybuffers(ivDechiffre, ivBytes) ) {
-      throw new Error("Dechiffrage - IV ne correspond pas")
-    }
+  //   // Comparer le IV pour s'assurer que le dechiffrage est correct
+  //   if( ! forgecommon.comparerArraybuffers(ivDechiffre, ivBytes) ) {
+  //     throw new Error("Dechiffrage - IV ne correspond pas")
+  //   }
 
-    var contenuDechiffreString = decoder.write(contenuDecrypte.slice(16))
-    contenuDechiffreString += decoder.write(decipher.final())
+  //   var contenuDechiffreString = decoder.write(contenuDecrypte.slice(16))
+  //   contenuDechiffreString += decoder.write(decipher.final())
 
-    return contenuDechiffreString
-  }
+  //   return contenuDechiffreString
+  // }
 
   async creerCipherChiffrageAsymmetrique(certificatsPem, domaine, identificateurs_document, opts) {
     const publicKeyBytesMillegrille = this.caForge.publicKey.publicKeyBytes
     const cipherInst = await preparerCipher({clePubliqueEd25519: publicKeyBytesMillegrille}),
           cipher = cipherInst.cipher
-
-    console.debug("!!!5 Cipher : %O", cipherInst)
 
     const cipherWrapper = {
       update: cipher.update,
@@ -295,6 +295,36 @@ class MilleGrillesPKI {
     }
 
     return cipherWrapper
+  }
+
+  /**
+   * 
+   * @param informationCle { iv, cle } ou { iv, cles }. cles est un dict {[fingerprint]: cle}
+   * @returns Decipher initialise avec la cle privee locale
+   */
+  async creerDecipherChiffrageAsymmetrique(informationCle) {
+    let { iv, cle, cles } = informationCle
+
+    if(cle) {
+      // On utilise la cle fournie directement
+    } else if(cles) {
+      // Trouver la cle qui correspond, par fingerprint
+      cle = cles[this.fingerprint]
+      if(!cle) throw new Error(`Cle non trouvee pour fingerprint ${this.fingerprint}`)
+    } else throw new Error("Cle non trouvee")
+
+    if(typeof(cle) === 'string') cle = base64.decode(cle)
+    else if( ! Buffer.isBuffer(cle) && ! ArrayBuffer.isView(cle) ) throw new Error(`Format cle non supporte : ${cle}`)
+
+    if( typeof(iv) === 'string') iv = base64.decode(iv)
+    else if( ! Buffer.isBuffer(iv) && ! ArrayBuffer.isView(iv) ) throw new Error(`Format IV non supporte : ${iv}`)
+
+    // Dechiffrer la cle asymmetrique
+    console.debug("Dechiffrer cle asymmetrique : %O", cle)
+    const cleSecrete = await this.decrypterAsymetrique(cle)
+    console.debug("Cle secrete dechiffree : %O", cleSecrete)
+
+    return preparerDecipher(cleSecrete, iv)
   }
 
   // Sauvegarde un message de certificat en format JSON
@@ -519,16 +549,16 @@ async function chargerCertificatFS(redisClient, fingerprint) {
 
 }
 
-function str2ab(str) {
+// function str2ab(str) {
 
-  const buf = new ArrayBuffer(str.length);
-  const bufView = new Uint8Array(buf);
-  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
-  }
-  return bufView;
+//   const buf = new ArrayBuffer(str.length);
+//   const bufView = new Uint8Array(buf);
+//   for (let i = 0, strLen = str.length; i < strLen; i++) {
+//     bufView[i] = str.charCodeAt(i);
+//   }
+//   return bufView;
 
-}
+// }
 
 class CertificatInconnu extends Error {
   constructor(message) {

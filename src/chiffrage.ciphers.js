@@ -2,6 +2,7 @@
 const crypto = require('crypto')
 const { setCiphers, Hacheur } = require('@dugrema/millegrilles.utiljs')
 const hachage = require('../src/hachage')
+const { base64 } = require('multiformats/bases/base64')
 
 // console.info("Ciphers disponibles : %s", crypto.getCiphers().reduce((liste, item)=>{
 //     return liste + '\n' + item
@@ -37,6 +38,7 @@ async function creerDecipherChacha20Poly1305(key, nonce) {
     return {
         update: data => decipher.update(data),
         finalize: tag => {
+            if(typeof(tag)==='string') tag = base64.decode(tag)
             decipher.setAuthTag(tag);
             return decipher.final()
         },
@@ -66,6 +68,7 @@ async function encryptChacha20Poly1305(key, nonce, data, opts) {
  * @param {*} opts 
  */
 async function decryptChacha20Poly1305(key, nonce, data, tag, opts) {
+    if(typeof(tag)==='string') tag = base64.decode(tag)
     const cipher = await creerDecipherChacha20Poly1305(key, nonce, opts)
     const ciphertext = await cipher.update(data)
     await cipher.finalize(tag)
