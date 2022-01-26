@@ -1,13 +1,13 @@
 /*
 Module d'authentification web
 */
-import debugLib from 'debug'
+const debugLib = require('debug')('millegrilles:authentification')
 
-import { randomBytes } from 'crypto'
-import { genererChallenge } from './webauthn'
-import { forgecommon, validateurMessage } from '@dugrema/millegrilles.utiljs'
+const { randomBytes } = require('crypto')
+const { genererChallenge } = require('./webauthn')
+const { forgecommon, validateurMessage } = require('@dugrema/millegrilles.utiljs')
 
-const debug = debugLib('millegrilles:authentification')
+// const debug = debugLib('millegrilles:authentification')
 const { validerChaineCertificats, extraireExtensionsMillegrille } = forgecommon
 const { verifierSignatureMessage } = validateurMessage
 
@@ -16,9 +16,7 @@ const CONST_CHALLENGE_CERTIFICAT = 'challengeCertificat',
       CONST_AUTH_SECONDAIRE = 'authentificationSecondaire',
       CONST_WEBAUTHN_CHALLENGE = 'webauthnChallenge'
 
-export { CONST_CHALLENGE_CERTIFICAT, CONST_AUTH_PRIMAIRE, CONST_AUTH_SECONDAIRE, CONST_WEBAUTHN_CHALLENGE }
-
-export async function verifierUsager(socket, params) {
+async function verifierUsager(socket, params) {
   /*
   Verifier l'existence d'un usager par methode http.
   Retourne des methodes d'authentification lorsque l'usager existe.
@@ -101,7 +99,7 @@ export async function verifierUsager(socket, params) {
   }
 }
 
-export async function genererChallengeCertificat(socket) {
+async function genererChallengeCertificat(socket) {
   debug("genererChallengeCertificat: Preparation challenge")
 
   // Generer challenge pour le certificat de navigateur ou cle de millegrille
@@ -119,7 +117,7 @@ export async function genererChallengeCertificat(socket) {
   return reponse
 }
 
-export function auditMethodesDisponibles(compteUsager, opts) {
+function auditMethodesDisponibles(compteUsager, opts) {
   opts = opts || {}
 
   // Creer une liste de methodes disponibles et utilisees
@@ -163,7 +161,7 @@ export function auditMethodesDisponibles(compteUsager, opts) {
   return methodesDisponibles
 }
 
-export function auditMethodesUtilisees(session, params, opts) {
+function auditMethodesUtilisees(session, params, opts) {
   opts = opts || {}
   const socket = opts.socket || {}
 
@@ -224,7 +222,7 @@ export function auditMethodesUtilisees(session, params, opts) {
   return methodesUtilisees
 }
 
-export async function auditMethodes(req, params, opts) {
+async function auditMethodes(req, params, opts) {
   opts = opts || {}
   debug("Audit methodes d'authentification, params : %O", params)
 
@@ -262,7 +260,7 @@ export async function auditMethodes(req, params, opts) {
   return {methodesDisponibles, methodesUtilisees, nombreVerifiees}
 }
 
-export async function upgradeProtegeCertificat(socket, params) {
+async function upgradeProtegeCertificat(socket, params) {
   // const compteUsager = await comptesUsagersDao.chargerCompte(socket.nomUsager)
   params = params || {}
   const session = socket.handshake.session
@@ -280,7 +278,7 @@ export async function upgradeProtegeCertificat(socket, params) {
   return resultat.valide
 }
 
-export async function upgradeProteger(socket, params) {
+async function upgradeProteger(socket, params) {
   params = params || {}
 
   // debug("upgradeProteger, params : %O", params)
@@ -320,7 +318,7 @@ export async function upgradeProteger(socket, params) {
 
 }
 
-export async function veriferUpgradeProtegerApp(socket, params, opts) {
+async function veriferUpgradeProtegerApp(socket, params, opts) {
   params = params || {}
   opts = opts || {}
 
@@ -426,7 +424,7 @@ export async function veriferUpgradeProtegerApp(socket, params, opts) {
 //   return resultat
 // }
 
-export async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody, opts) {
+async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody, opts) {
   opts = opts || {}
   debug("verifierSignatureCertificat : idmg=%s, opts: %O", idmg, opts)
 
@@ -469,7 +467,7 @@ export async function verifierSignatureCertificat(idmg, chainePem, challengeSess
   throw new Error("Signature avec certificat invalide")
 }
 
-export async function verifierSignatureMillegrille(certificatMillegrille, challengeSession, challengeBody) {
+async function verifierSignatureMillegrille(certificatMillegrille, challengeSession, challengeBody) {
   // Validation de la signature de la cle de MilleGrille
 
   if( challengeBody.date !== challengeSession.date ) {
@@ -493,13 +491,13 @@ export async function verifierSignatureMillegrille(certificatMillegrille, challe
   throw new Error("Signature avec cle de Millegrille invalide")
 }
 
-// module.exports = {
-//   verifierUsager, auditMethodes, auditMethodesDisponibles,
-//   upgradeProteger, upgradeProtegeCertificat,
-//   verifierSignatureCertificat, verifierSignatureMillegrille,
-//   genererChallengeCertificat,
-//   // verifierMethode, 
-//   veriferUpgradeProtegerApp,
+module.exports = {
+  verifierUsager, auditMethodes, auditMethodesDisponibles,
+  upgradeProteger, upgradeProtegeCertificat,
+  verifierSignatureCertificat, verifierSignatureMillegrille,
+  genererChallengeCertificat,
+  // verifierMethode, 
+  veriferUpgradeProtegerApp,
 
-//   CONST_CHALLENGE_CERTIFICAT, CONST_WEBAUTHN_CHALLENGE,
-// }
+  CONST_CHALLENGE_CERTIFICAT, CONST_AUTH_PRIMAIRE, CONST_AUTH_SECONDAIRE, CONST_WEBAUTHN_CHALLENGE,
+}

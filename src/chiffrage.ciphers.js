@@ -1,7 +1,7 @@
 /* Facade pour crypto de nodejs. */
-import crypto from 'crypto'
-import { setCiphers, Hacheur } from '@dugrema/millegrilles.utiljs'
-import '../src/hachage'
+const crypto = require('crypto')
+const { setCiphers, Hacheur } = require('@dugrema/millegrilles.utiljs')
+const hachage = require('../src/hachage')
 
 // console.info("Ciphers disponibles : %s", crypto.getCiphers().reduce((liste, item)=>{
 //     return liste + '\n' + item

@@ -1,18 +1,19 @@
-import debugLib from 'debug'
+const debug = require('debug')('millegrilles:common:pki')
 
 // const debug = require('debug')('millegrilles:common:pki')
 // const crypto = require('crypto')
-import { StringDecoder } from 'string_decoder'
-import {
+const { StringDecoder } = require('string_decoder')
+const {
   forgecommon, formatteurMessage, validateurMessage, 
   hacherCertificat, // hachage, 
   // Chiffrage
   //creerCipher, 
   preparerCipher,
-  dechiffrerCleSecreteForge, preparerCommandeMaitrecles,
+  // dechiffrerCleSecreteForge, 
+  preparerCommandeMaitrecles,
   chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
-} from '@dugrema/millegrilles.utiljs'
-
+  ed25519,
+} = require('@dugrema/millegrilles.utiljs')
 const { pki } = require('@dugrema/node-forge')
 
 // import {splitPEMCerts, FormatteurMessage} from './formatteurMessage'
@@ -20,6 +21,7 @@ const { pki } = require('@dugrema/node-forge')
 // import { hacherCertificat } from './hachage'
 // import { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } from './chiffrage'
 
+const { dechiffrerCle } = ed25519
 const {splitPEMCerts, FormatteurMessageEd25519} = formatteurMessage
 const { verifierMessage } = validateurMessage
 // const { hacherCertificat } = hachage
@@ -28,14 +30,14 @@ const { verifierMessage } = validateurMessage
 // const REPERTOIRE_CERTS_TMP = tmp.dirSync().name
 // debug("Repertoire temporaire certs : %s", REPERTOIRE_CERTS_TMP);
 
-const debug = debugLib('millegrilles:common:pki')
+// const debug = debugLib('millegrilles:common:pki')
 
 const PEM_CERT_DEBUT = '-----BEGIN CERTIFICATE-----'
 const PEM_CERT_FIN = '-----END CERTIFICATE-----'
 const EXPIRATION_CERTCACHE = 2 * 60000,   // 2 minutes en millisecs
       EXPIRATION_REDIS_CERT = ''+(48 * 60 * 60)  // 48 heures en secondes
 
-export class MilleGrillesPKI {
+class MilleGrillesPKI {
   // Classe qui supporte des operations avec certificats et cles privees.
 
   constructor() {
@@ -174,7 +176,8 @@ export class MilleGrillesPKI {
     // Charger certificat local
     var certs = splitPEMCerts(certPems.cert)
     this.chaineCertificatsList = certs
-    debug(certs)
+    debug("Certificat CA local: %O", certs)
+    console.debug("Certificat CA local: %O", certs)
     this.certPEM = certs[0]
 
     let parsedCert = pki.certificateFromPem(this.certPEM)
@@ -199,6 +202,7 @@ export class MilleGrillesPKI {
 
     // Creer le CA store pour verifier les certificats.
     let parsedCACert = pki.certificateFromPem(this.ca)
+    this.fingerprintCa = await hacherCertificat(parsedCert)
     this.caForge = parsedCACert
     this.caStore = pki.createCaStore([parsedCACert])
 
@@ -220,7 +224,8 @@ export class MilleGrillesPKI {
   }
 
   async decrypterAsymetrique(contenuSecret) {
-    return dechiffrerCleSecreteForge(this.cleForge, contenuSecret)
+    // return dechiffrerCleSecreteForge(this.cleForge, contenuSecret)
+    dechiffrerCle(contenuSecret, this.cleForge.privateKeyBytes)
   }
 
   async dechiffrerContenuAsymetric(cleChiffree, iv, tag, contenuChiffre) {
@@ -256,12 +261,13 @@ export class MilleGrillesPKI {
   }
 
   async creerCipherChiffrageAsymmetrique(certificatsPem, domaine, identificateurs_document, opts) {
-    const cipher = await preparerCipher({clePubliqueEd25519})
+    const publicKeyBytesMillegrille = this.parsedCACert.publicKeyBytes
+    const cipher = await preparerCipher({clePubliqueEd25519: publicKeyBytesMillegrille})
 
     const cipherWrapper = {
       update: cipher.update,
-      finish: async () => {
-        const infoChiffrage = await cipher.finish()
+      finalize: async () => {
+        const infoChiffrage = await cipher.finalize()
         const meta = infoChiffrage.meta
 
         console.debug("Info meta cipher : %O", meta)
@@ -273,6 +279,10 @@ export class MilleGrillesPKI {
           identificateurs_document,
           opts
         )
+
+        // Remplacer cle chiffree de millegrille par peerPublic (secretChiffre)
+        const cles = commandeMaitreCles.cles
+        cles[this.fingerprintCa] = cipher.secretChiffre
 
         return {meta, commandeMaitreCles}
       }
@@ -520,3 +530,5 @@ class CertificatInconnu extends Error {
     this.inconnu = true;
   }
 }
+
+module.exports = { MilleGrillesPKI }

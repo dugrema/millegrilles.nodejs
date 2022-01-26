@@ -1,16 +1,16 @@
-import debugLib from 'debug'
-import fs from 'fs'
-import morgan from 'morgan'
-import session from 'express-session'
-import redis from "redis"
-import redisConnect from 'connect-redis'
-import {v4 as uuidv4} from 'uuid'
-import socketio from 'socket.io'
-import socketioSession from 'express-socket.io-session'
-import { MilleGrillesAmqpDAO } from './amqpdao'
-import { MilleGrillesPKI } from './pki'
-import initComptesUsagers from './comptesUsagersDao'
-import { genererChallengeCertificat, veriferUpgradeProtegerApp } from './authentification'
+const debugLib = require('debug')
+const fs = require('fs')
+const morgan = require('morgan')
+const session = require('express-session')
+const redis = require('redis')
+const redisConnect = require('connect-redis')
+const {v4: uuidv4} = require('uuid')
+const socketio = require('socket.io')
+const socketioSession = require('express-socket.io-session')
+const { MilleGrillesAmqpDAO } = require('./amqpdao')
+const { MilleGrillesPKI } = require('./pki')
+const initComptesUsagers = require('./comptesUsagersDao')
+const { genererChallengeCertificat, veriferUpgradeProtegerApp } = require('./authentification')
 
 const debug = debugLib('millegrilles:server5'),
       debugConnexions = debugLib('millegrilles:server5:connexions'),
@@ -44,7 +44,7 @@ function chargerCookie() {
   return secretCookiesPassword
 }
 
-export async function server5(app, configurerEvenements, opts) {
+async function server5(app, configurerEvenements, opts) {
   opts = opts || {}
 
   // Preparer environnement
@@ -530,3 +530,5 @@ function verifierAuthentification(req, res, next) {
 //     .reduce((score, item)=>{return score + item}, 0)
 //   return score
 // }
+
+module.exports = { server5 }

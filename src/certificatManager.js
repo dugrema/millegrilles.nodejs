@@ -1,14 +1,14 @@
-import debugLib from 'debug'
+const debug = require('debug')('millegrilles:common:certificatmanager')
 // import { pki } from '@dugrema/node-forge'
-import { validateurMessage } from '@dugrema/millegrilles.utiljs'
+// const { validateurMessage } = require('@dugrema/millegrilles.utiljs')
 
 const { pki } = require('@dugrema/node-forge')
 
-const debug = debugLib('millegrilles:common:certificatmanager')
+// const debug = debugLib('millegrilles:common:certificatmanager')
 
 const MG_ROUTING_EMETTRE_CERTIFICAT = 'evenement.certificat.infoCertificat'
 
-const verifierMessage = validateurMessage.verifierMessage
+// const verifierMessage = validateurMessage.verifierMessage
 
 export default class GestionnaireCertificatMessages {
   // Gere les requetes et reponses de certificats

@@ -1,8 +1,8 @@
-import debugLib from 'debug'
+const debug = require('debug')('millegrilles:common:dao:comptesUsagersDao')
 
-import { forgecommon } from '@dugrema/millegrilles.utiljs'
+const { forgecommon } = require('@dugrema/millegrilles.utiljs')
 
-const debug = debugLib('millegrilles:common:dao:comptesUsagersDao')
+// const debug = debugLib('millegrilles:common:dao:comptesUsagersDao')
 const { extraireInformationCertificat } = forgecommon
 
 class ComptesUsagers {
@@ -227,7 +227,7 @@ class ComptesUsagers {
 }
 
 // Fonction qui injecte l'acces aux comptes usagers dans req
-export default amqDao => {
+function injecter(amqDao) {
   const comptesUsagers = new ComptesUsagers(amqDao)
 
   const injecterComptesUsagers = async (req, res, next) => {
@@ -262,3 +262,5 @@ export default amqDao => {
 
   return {injecterComptesUsagers, extraireUsager, comptesUsagersDao: comptesUsagers}
 }
+
+module.exports = injecter

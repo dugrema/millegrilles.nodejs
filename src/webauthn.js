@@ -1,21 +1,21 @@
-import debugLib from 'debug'
+const debug = require('debug')('millegrilles:webauthn')
 
-import multibase from 'multibase'
-import base64url from 'base64url'
-import { Fido2Lib } from 'fido2-lib'
+const multibase = require('multibase')
+const base64url = require('base64url')
+const { Fido2Lib } = require('fido2-lib')
 
-import { formatteurMessage, constantes } from '@dugrema/millegrilles.utiljs'
+const { formatteurMessage, constantes } = require('@dugrema/millegrilles.utiljs')
 
 const { CONST_COMMANDE_AUTH, CONST_COMMANDE_SIGNER_CSR } = constantes
 const { hacherMessage } = formatteurMessage
 
-const debug = debugLib('millegrilles:webauthn')
+// const debug = debugLib('millegrilles:webauthn')
 
 // Variables globales
 var _f2l = null
 var _hostname = null
 
-export function init(hostname, idmg, opts) {
+function init(hostname, idmg, opts) {
   opts = opts || {}
   debug("common.webauthn Init hostname: %s, idmg: %s, opts: %O", hostname, idmg, opts)
 
@@ -45,7 +45,7 @@ export function init(hostname, idmg, opts) {
   return {f2l: _f2l}
 }
 
-export async function genererChallenge(methodesDisponibles, opts) {
+async function genererChallenge(methodesDisponibles, opts) {
   opts = opts || {}
   const authnOptions = await _f2l.assertionOptions()
   debug("AuthnOptions : %O, opts: %O", authnOptions, opts)
@@ -79,7 +79,7 @@ export async function genererChallenge(methodesDisponibles, opts) {
   return authnOptionsBuffer
 }
 
-export function webauthnResponseBytesToMultibase(clientAssertionResponse) {
+function webauthnResponseBytesToMultibase(clientAssertionResponse) {
   // Structure {
   //    id,
   //    id64,
@@ -113,7 +113,7 @@ export function webauthnResponseBytesToMultibase(clientAssertionResponse) {
   return responseConvertie
 }
 
-export async function verifierChallenge(challengeInfo, compteUsager, clientAssertionResponse, opts) {
+async function verifierChallenge(challengeInfo, compteUsager, clientAssertionResponse, opts) {
   opts = opts || {}
   const authChallenge = challengeInfo.challenge,
         rpId = challengeInfo.rpId,
@@ -193,7 +193,7 @@ export async function verifierChallenge(challengeInfo, compteUsager, clientAsser
   return {authentifie: true, counter, userVerification, userPresence, assertionExpectations}
 }
 
-export async function genererRegistrationOptions(userId, nomUsager, opts) {
+async function genererRegistrationOptions(userId, nomUsager, opts) {
   opts = opts || {}
   debug("Registration request, userId %s, usager %s, opts: %O", userId, nomUsager, opts)
   // const attestationParams = {
@@ -245,7 +245,7 @@ export async function genererRegistrationOptions(userId, nomUsager, opts) {
   }
 }
 
-export async function validerRegistration(response, attestationExpectations) {
+async function validerRegistration(response, attestationExpectations) {
   debug("validerRegistration sessionChallenge : %O, reponse : %O", attestationExpectations, response)
   let sessionChallenge = attestationExpectations.challenge
   if(typeof(sessionChallenge) === 'string') {
@@ -290,9 +290,9 @@ export async function validerRegistration(response, attestationExpectations) {
   return informationCle
 }
 
-// module.exports = {
-//   init,
-//   genererRegistrationOptions,
-//   genererChallenge, verifierChallenge, validerRegistration,
-//   webauthnResponseBytesToMultibase,
-// }
+module.exports = {
+  init,
+  genererRegistrationOptions,
+  genererChallenge, verifierChallenge, validerRegistration,
+  webauthnResponseBytesToMultibase,
+}

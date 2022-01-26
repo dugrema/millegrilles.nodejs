@@ -1,11 +1,11 @@
-import debugLib from 'debug'
+const debugLib = require('debug')
 
 const debug = debugLib('millegrilles:routingKeyManager')
 const debugMessages = debugLib('millegrilles:routingKeyManager:messages')
 
 const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
 
-export default class RoutingKeyManager {
+class RoutingKeyManager {
 
   constructor(mq, opts) {
     if(!opts) opts = {}
@@ -266,3 +266,5 @@ export default class RoutingKeyManager {
   }
 
 }
+
+module.exports = RoutingKeyManager

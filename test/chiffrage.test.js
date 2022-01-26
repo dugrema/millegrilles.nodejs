@@ -1,14 +1,14 @@
 // Sanity test de chiffrage.ciphers.js
-import '../src/chiffrage.ciphers'
-import { 
-    chiffrer, dechiffrer, ed25519 as utiljsEd25519, preparerCipher, preparerDecipher,
+require('../src/chiffrage.ciphers')
+const { 
+    chiffrer, dechiffrer, ed25519: utiljsEd25519, preparerCipher, preparerDecipher,
     preparerCommandeMaitrecles,
     genererClePrivee, genererCertificatMilleGrille
-} from '@dugrema/millegrilles.utiljs'
-import nodeforge from '@dugrema/node-forge'
-import { base64 } from 'multiformats/bases/base64'
+} = require('@dugrema/millegrilles.utiljs')
+const { ed25519 } = require('@dugrema/node-forge')
+const { base64 } = require('multiformats/bases/base64')
 
-const { ed25519 } = nodeforge
+// const { ed25519 } = nodeforge
 
 async function genererCert() {
     const clePrivee = genererClePrivee()
@@ -17,7 +17,6 @@ async function genererCert() {
     console.debug("certInfo: %O", certInfo)
     return {...certInfo, clePrivee}
 }
-
 
 test('chiffrage/dechiffrage contenu one-pass', async () => {
     console.debug("Test chiffrage/dechiffrage")

@@ -3,11 +3,11 @@
   interaction avec MilleGrilles.
  */
 
-import debugLib from 'debug'
-import amqplib from 'amqplib'
+const debugLib = require('debug')
+const amqplib = require('amqplib')
 
-import RoutingKeyManager from './routingKeyManager'
-import GestionnaireCertificatMessages from './certificatManager'
+const RoutingKeyManager = require('./routingKeyManager')
+const GestionnaireCertificatMessages = require('./certificatManager')
 
 const MG_EXCHANGE_PROTEGE = '3.protege'
 const ROUTING_CERTIFICAT = 'requete.certificat'
@@ -19,7 +19,7 @@ const EXPIRATION_MESSAGE_DEFAUT = 15 * 60 * 1000  // 15 minutes en millisec
 const debug = debugLib('millegrilles:common:amqpdao')
 const debugMessages = debugLib('millegrilles:common:amqpdao:messages')
 
-export class MilleGrillesAmqpDAO {
+class MilleGrillesAmqpDAO {
 
   constructor(pki, opts) {
     this.pki = pki;
@@ -1181,3 +1181,5 @@ export class MilleGrillesAmqpDAO {
   }
 
 }
+
+module.exports = { MilleGrillesAmqpDAO }
