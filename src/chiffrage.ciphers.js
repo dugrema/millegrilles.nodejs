@@ -14,19 +14,19 @@ async function creerCipherChacha20Poly1305(key, nonce, opts) {
     const cipher = crypto.createCipheriv('chacha20-poly1305', key, nonce, { authTagLength: 16 })
     const hacheur = new Hacheur({hashingCode: digestAlgo})
     await hacheur.ready
-    let tag = null
-    let hachage = null
+    let tag = null, hachage = null, taille = 0
     return {
         update: async data => {
             const ciphertext = cipher.update(data)
             await hacheur.update(ciphertext)
+            taille += data.length
             return ciphertext
         },
         finalize: async () => {
             cipher.final()
             tag = cipher.getAuthTag()
             hachage = await hacheur.finalize()
-            return {tag, hachage}
+            return {tag, hachage, taille}
         },
         tag: () => tag,
         hachage: () => hachage,

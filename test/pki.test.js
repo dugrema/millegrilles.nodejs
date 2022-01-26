@@ -52,18 +52,21 @@ test('creerCipher', async () => {
         console.debug("Ciphertext : %O\nOutput: %O", ciphertext, outputCipher)
 
         // Dechiffrer
+        const {meta, commandeMaitreCles} = outputCipher
         const informationDechiffrage = {
-            iv: outputCipher.iv,
-            cles: outputCipher.cles
+            iv: commandeMaitreCles.iv,
+            cles: commandeMaitreCles.cles
         }
         const decipher = await pki.creerDecipherChiffrageAsymmetrique(informationDechiffrage)
         console.debug("Decipher : %O", decipher)
 
         const messageDechiffre = new Uint8Array(await decipher.update(ciphertext))
-        expect.assertions(1)
+        
+        expect.assertions(2)
+        expect(meta.taille).toBe(20)
         expect(messageDechiffre).toEqual(message)
 
-        await decipher.finalize(outputCipher.tag)
+        await decipher.finalize(commandeMaitreCles.tag)
 
     } finally {
         // Cleanup

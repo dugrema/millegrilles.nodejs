@@ -10,7 +10,7 @@ const MG_ROUTING_EMETTRE_CERTIFICAT = 'evenement.certificat.infoCertificat'
 
 // const verifierMessage = validateurMessage.verifierMessage
 
-export default class GestionnaireCertificatMessages {
+class GestionnaireCertificatMessages {
   // Gere les requetes et reponses de certificats
 
   constructor(pki, mq) {
@@ -191,3 +191,4 @@ export default class GestionnaireCertificatMessages {
   }
 }
 
+module.exports = GestionnaireCertificatMessages

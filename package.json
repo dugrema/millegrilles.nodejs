@@ -34,7 +34,7 @@
   },
   "files": [
     "dist",
-    "src/hachage.js"
+    "src"
   ],
   "peerDependencies": {
     "@dugrema/millegrilles.utiljs": "github:dugrema/millegrilles.utiljs#2022.0.0",

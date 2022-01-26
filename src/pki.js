@@ -290,7 +290,7 @@ class MilleGrillesPKI {
         const cles = commandeMaitreCles.cles
         cles[this.fingerprintCa] = cipherInst.secretChiffre
 
-        return commandeMaitreCles
+        return {meta: infoChiffrage, commandeMaitreCles}
       }
     }
 
