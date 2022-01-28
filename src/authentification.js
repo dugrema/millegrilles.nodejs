@@ -1,7 +1,7 @@
 /*
 Module d'authentification web
 */
-const debugLib = require('debug')('millegrilles:authentification')
+const debug = require('debug')('millegrilles:authentification')
 
 const { randomBytes } = require('crypto')
 const { genererChallenge } = require('./webauthn')
