@@ -1,4 +1,4 @@
-const {setHacheurs} = require('@dugrema/millegrilles.utiljs')
+const hachage = require('@dugrema/millegrilles.utiljs/src/hachage')
 const blake2 = require('blake2')
 const { createHash: cryptoCreateHash } = require('crypto')
 
@@ -36,6 +36,6 @@ const hacheurs = {
     'blake2b-512': () => blake2HachageConstructor('blake2b'),
 }
 
-setHacheurs(hacheurs)
+hachage.setHacheurs(hacheurs)
 
-module.exports = { setHacheurs, hacheurs }
+module.exports = { ...hachage, hacheurs }

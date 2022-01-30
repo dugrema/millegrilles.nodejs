@@ -4,28 +4,38 @@ const debug = require('debug')('millegrilles:common:pki')
 // const crypto = require('crypto')
 // const { StringDecoder } = require('string_decoder')
 const { base64 } = require('multiformats/bases/base64')
-const {
-  forgecommon, formatteurMessage, validateurMessage, encoderIdmg,
-  hacherCertificat, // hachage, 
-  // Chiffrage
-  //creerCipher, 
-  preparerCipher,
-  // dechiffrerCleSecreteForge, 
-  preparerCommandeMaitrecles,
-  chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
-  ed25519,
-  preparerDecipher,
-} = require('@dugrema/millegrilles.utiljs')
+// const {
+//   forgecommon, formatteurMessage, validateurMessage, encoderIdmg,
+//   hacherCertificat, // hachage, 
+//   // Chiffrage
+//   //creerCipher, 
+//   preparerCipher,
+//   // dechiffrerCleSecreteForge, 
+//   preparerCommandeMaitrecles,
+//   chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
+//   ed25519,
+//   preparerDecipher,
+// } = require('@dugrema/millegrilles.utiljs')
 const { pki } = require('@dugrema/node-forge')
+
+const forgecommon = require('@dugrema/millegrilles.utiljs/src/forgecommon')
+const {splitPEMCerts, FormatteurMessageEd25519} = require('@dugrema/millegrilles.utiljs/src/formatteurMessage')
+const { verifierMessage } = require('@dugrema/millegrilles.utiljs/src/validateurMessage')
+const { encoderIdmg } = require('@dugrema/millegrilles.utiljs/src/idmg')
+const { chargerPemClePriveeEd25519, exporterPemClePriveeEd25519 } = require('@dugrema/millegrilles.utiljs/src/certificats')
+const { dechiffrerCle } = require('@dugrema/millegrilles.utiljs/src/chiffrage.ed25519')
+
+const { hacherCertificat } = require('./hachage')
+const { preparerCipher, preparerCommandeMaitrecles, preparerDecipher } = require('./chiffrage')
 
 // import {splitPEMCerts, FormatteurMessage} from './formatteurMessage'
 // import { verifierMessage } from './validateurMessage'
 // import { hacherCertificat } from './hachage'
 // import { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } from './chiffrage'
 
-const { dechiffrerCle } = ed25519
-const {splitPEMCerts, FormatteurMessageEd25519} = formatteurMessage
-const { verifierMessage } = validateurMessage
+// const { dechiffrerCle } = ed25519
+// const {splitPEMCerts, FormatteurMessageEd25519} = formatteurMessage
+// const { verifierMessage } = validateurMessage
 // const { hacherCertificat } = hachage
 // const { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } = chiffrage
 

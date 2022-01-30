@@ -1,11 +1,14 @@
-require('../src/chiffrage.ciphers')
+
+require('../src/chiffrage.ciphers')  // Init hachage, chiffrage
+const { genererClePrivee, genererCertificatMilleGrille, genererCsrNavigateur, genererCertificatIntermediaire } =
+    require('@dugrema/millegrilles.utiljs/src/certificats')
 
 const { MilleGrillesPKI } = require('../src/pki')
-const { 
-    chiffrer, dechiffrer, ed25519: utiljsEd25519, preparerCipher, preparerDecipher,
-    preparerCommandeMaitrecles,
-    genererClePrivee, genererCertificatMilleGrille, genererCsrNavigateur, genererCertificatIntermediaire
-} = require('@dugrema/millegrilles.utiljs')
+// const { 
+//     chiffrer, dechiffrer, ed25519: utiljsEd25519, preparerCipher, preparerDecipher,
+//     preparerCommandeMaitrecles,
+//     genererClePrivee, genererCertificatMilleGrille, genererCsrNavigateur, genererCertificatIntermediaire
+// } = require('@dugrema/millegrilles.utiljs')
 
 async function genererCert(ca) {
     const clePrivee = genererClePrivee()

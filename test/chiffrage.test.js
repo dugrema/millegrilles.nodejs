@@ -1,10 +1,16 @@
 // Sanity test de chiffrage.ciphers.js
-require('../src/chiffrage.ciphers')
-const { 
-    chiffrer, dechiffrer, ed25519: utiljsEd25519, preparerCipher, preparerDecipher,
-    preparerCommandeMaitrecles,
-    genererClePrivee, genererCertificatMilleGrille
-} = require('@dugrema/millegrilles.utiljs')
+//require('../src/chiffrage.ciphers')
+// const { 
+//     chiffrer, dechiffrer, preparerCipher, preparerDecipher,
+//     ed25519: utiljsEd25519, 
+//     preparerCommandeMaitrecles,
+//     genererClePrivee, genererCertificatMilleGrille
+// } = require('@dugrema/millegrilles.utiljs')
+
+const { chiffrer, dechiffrer, preparerCipher, preparerDecipher, preparerCommandeMaitrecles } = require('../src/chiffrage')
+const utiljsEd25519 = require('@dugrema/millegrilles.utiljs/src/chiffrage.ed25519')
+const { genererClePrivee, genererCertificatMilleGrille } = require('@dugrema/millegrilles.utiljs/src/certificats')
+
 const { ed25519 } = require('@dugrema/node-forge')
 const { base64 } = require('multiformats/bases/base64')
 

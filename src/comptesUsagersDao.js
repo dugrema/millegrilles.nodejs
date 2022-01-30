@@ -1,9 +1,9 @@
 const debug = require('debug')('millegrilles:common:dao:comptesUsagersDao')
 
-const { forgecommon } = require('@dugrema/millegrilles.utiljs')
+const { extraireInformationCertificat } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
 
 // const debug = debugLib('millegrilles:common:dao:comptesUsagersDao')
-const { extraireInformationCertificat } = forgecommon
+//const { extraireInformationCertificat } = forgecommon
 
 class ComptesUsagers {
 

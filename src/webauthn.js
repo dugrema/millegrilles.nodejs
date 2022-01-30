@@ -4,10 +4,11 @@ const multibase = require('multibase')
 const base64url = require('base64url')
 const { Fido2Lib } = require('fido2-lib')
 
-const { formatteurMessage, constantes } = require('@dugrema/millegrilles.utiljs')
+const { hacherMessage } = require('@dugrema/millegrilles.utiljs/src/formatteurMessage')
+const { CONST_COMMANDE_AUTH, CONST_COMMANDE_SIGNER_CSR } = require('@dugrema/millegrilles.utiljs/src/constantes')
 
-const { CONST_COMMANDE_AUTH, CONST_COMMANDE_SIGNER_CSR } = constantes
-const { hacherMessage } = formatteurMessage
+// const { CONST_COMMANDE_AUTH, CONST_COMMANDE_SIGNER_CSR } = constantes
+// const { hacherMessage } = formatteurMessage
 
 // const debug = debugLib('millegrilles:webauthn')
 

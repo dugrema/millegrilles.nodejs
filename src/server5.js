@@ -7,6 +7,7 @@ const redisConnect = require('connect-redis')
 const {v4: uuidv4} = require('uuid')
 const socketio = require('socket.io')
 const socketioSession = require('express-socket.io-session')
+
 const { MilleGrillesAmqpDAO } = require('./amqpdao')
 const { MilleGrillesPKI } = require('./pki')
 const initComptesUsagers = require('./comptesUsagersDao')

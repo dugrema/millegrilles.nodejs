@@ -5,11 +5,12 @@ const debug = require('debug')('millegrilles:authentification')
 
 const { randomBytes } = require('crypto')
 const { genererChallenge } = require('./webauthn')
-const { forgecommon, validateurMessage } = require('@dugrema/millegrilles.utiljs')
+const { validerChaineCertificats, extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
+const { verifierSignatureMessage } = require('@dugrema/millegrilles.utiljs/src/validateurMessage')
 
 // const debug = debugLib('millegrilles:authentification')
-const { validerChaineCertificats, extraireExtensionsMillegrille } = forgecommon
-const { verifierSignatureMessage } = validateurMessage
+//const { validerChaineCertificats, extraireExtensionsMillegrille } = forgecommon
+//const { verifierSignatureMessage } = validateurMessage
 
 const CONST_CHALLENGE_CERTIFICAT = 'challengeCertificat',
       CONST_AUTH_PRIMAIRE = 'authentificationPrimaire',
