@@ -67,6 +67,7 @@ class MilleGrillesPKI {
     // this.hotePEM = null  // Chaine XS pour connexion middleware
     // this.hoteCA = null
     this.ca = null
+    this.fingerprintCa = null
     this.fingerprint = null
 
     // this.caIntermediaires = []
