@@ -99,7 +99,10 @@ async function server5(app, configurerEvenements, opts) {
   // Utiliser la session pour toutes les routes
   app.use(sessionMiddleware)
   app.use(transferHeaders)
-  if( ! opts.noPreAuth ) app.use(verifierAuthentification)
+  if( ! opts.noPreAuth ) {
+    const authentification = opts.verifierAuthentification || verifierAuthentification
+    app.use(authentification)
+  }
 
   // Configurer server et socket.io
   const server = _initServer(app, hostname, certPems)
