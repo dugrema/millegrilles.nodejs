@@ -177,7 +177,7 @@ class MilleGrillesPKI {
       debug("Certificat non trouve localement, mais il est inline")
       await this.sauvegarderMessageCertificat({chaine_pem: chaine, millegrille}, fingerprint, opts)
       const certCache = this.cacheCertsParFingerprint[fingerprint]
-      let chaineForge = null
+      // let chaineForge = null
       if(certCache) {
         chaineForge = certCache.chaineForge
         certCache.ts = new Date().getTime()  // Touch
@@ -400,7 +400,7 @@ class MilleGrillesPKI {
         let fingerprint = await hacherCertificat(certificat)
 
         // La chaine est valide, on sauvegarde le certificat
-        const certCache = {ts: new Date().getTime(), chaineForge: chaineCerts}
+        const certCache = {ts: new Date().getTime(), chaineForge: chaineCerts, ca: certificatCa}
         // debug("sauvegarderMessageCertificat: Ajouter certificat au cache : %O", certCache)
         this.cacheCertsParFingerprint[fingerprint] = certCache
 
