@@ -152,20 +152,22 @@ class MilleGrillesPKI {
     return this.formatteurMessage.formatterMessage(message, domaineAction, opts)
   }
 
-  async verifierMessage(message) {
+  async verifierMessage(message, opts) {
+    opts = opts || {}
+    const optsMessages = {...opts}  // Copie
     // Trouver le certificat correspondant au message
     const fingerprint = message['en-tete'].fingerprint_certificat
-    const chaine = message['_certificat']
+    const chaine = message['_certificat'],
+          millegrille = message['_millegrille']
 
-    const opts = {}
     if(chaine) {
       // On a un certificat inline - on tente quand meme d'utiliser le cache
-      opts.nowait = true
+      optsMessages.nowait = true
     }
     var chaineForge = null
     var _err = null
     try {
-      chaineForge = await this.getCertificate(fingerprint, opts)
+      chaineForge = await this.getCertificate(fingerprint, optsMessages)
     } catch(err) {
       _err = err
     }
@@ -173,7 +175,7 @@ class MilleGrillesPKI {
     if(!chaineForge) {
       if(!chaine) throw _err
       debug("Certificat non trouve localement, mais il est inline")
-      await this.sauvegarderMessageCertificat({chaine_pem: chaine}, fingerprint)
+      await this.sauvegarderMessageCertificat({chaine_pem: chaine, millegrille}, fingerprint, opts)
       const certCache = this.cacheCertsParFingerprint[fingerprint]
       let chaineForge = null
       if(certCache) {
@@ -219,7 +221,7 @@ class MilleGrillesPKI {
     this.caForge = parsedCACert
     this.caStore = pki.createCaStore([parsedCACert])
     // Objet different pour valide certs, supporte date null
-    this.caCertificateStore = new forgecommon.CertificateStore(parsedCACert, {DEBUG: true})
+    this.caCertificateStore = new forgecommon.CertificateStore(parsedCACert, {DEBUG: false})
 
     // Recalculer IDMG, calculer fingerprint
     this.idmg = await encoderIdmg(this.ca)
@@ -339,7 +341,8 @@ class MilleGrillesPKI {
   }
 
   // Sauvegarde un message de certificat en format JSON
-  async sauvegarderMessageCertificat(message_in, fingerprintBase58) {
+  async sauvegarderMessageCertificat(message_in, fingerprintBase58, opts) {
+    opts = opts || {}
     let message = message_in
     if(typeof(message) === 'string') message = JSON.parse(message)
     let chaine_pem = ''
@@ -362,9 +365,9 @@ class MilleGrillesPKI {
 
     // debug("sauvegarderMessageCertificat, fichier %s existe? %s", fingerprintBase58, fichierExiste)
     let fichierExiste = false
-    const cleCert = 'certificat:' + fingerprintBase58
+    const cleCert = 'certificat_v1:' + fingerprintBase58
 
-    debug("sauvegarderMessageCertificat")
+    debug("sauvegarderMessageCertificat %s", cleCert)
 
     if(this.redisClient) {
       debug("Sauvegarder/touch certificat dans client redis : %s", fingerprintBase58)
@@ -379,11 +382,16 @@ class MilleGrillesPKI {
     }
 
     if( ! fichierExiste ) {
-      // let json_message = JSON.parse(message);
-      // let chaine_pem = json_message.chaine_pem || json_message.resultats.chaine_pem
-
       // Verifier la chain de certificats
-      const store = new forgecommon.CertificateStore(this.ca)
+      let certificatCa = this.ca
+      let certificatCaTiers = null
+      if(opts.tiers === true && message['millegrille']) {
+        // Supporter certificat CA tiers attache sous _millegrille
+        certificatCa = message['millegrille']
+        certificatCaTiers = message['millegrille']
+        debug("Utiliser certificat tiers : %O", certificatCa)
+      }
+      const store = new forgecommon.CertificateStore(certificatCa, {DEBUG: false})
       if(store.verifierChaine(chaine_pem, {validityCheckDate: null})) {
         const chaineCerts = chaine_pem.map(pem=>{
           return pki.certificateFromPem(pem)
@@ -397,7 +405,8 @@ class MilleGrillesPKI {
         this.cacheCertsParFingerprint[fingerprint] = certCache
 
         if(this.redisClient) {
-          this.redisClient.set(cleCert, JSON.stringify(chaine_pem), 'NX', 'EX', EXPIRATION_REDIS_CERT)
+          const valeurCache = {'pems': chaine_pem, 'ca': certificatCaTiers}
+          this.redisClient.set(cleCert, JSON.stringify(valeurCache), 'NX', 'EX', EXPIRATION_REDIS_CERT)
         }
 
         // Informatif seulement : verifier si c'est bien le certificat qui a ete demande
@@ -410,7 +419,7 @@ class MilleGrillesPKI {
         return fingerprintBase58
 
       } else {
-        throw new Error(`Erreur validation certificat recu : ${json_message.fingerprint}`)
+        throw new Error(`Erreur validation certificat recu : ${fingerprintBase58}`)
       }
 
     } else {
@@ -439,12 +448,20 @@ class MilleGrillesPKI {
     // Verifier si le certificat existe sur le disque
     if(this.redisClient) {
       try {
-        const chaine = await chargerCertificatFS(this.redisClient, fingerprintEffectif)
+        const certificatInfo = await chargerCertificatFS(this.redisClient, fingerprintEffectif)
+        const chaine = certificatInfo.certificat,
+              ca = certificatInfo.ca
 
         // Valider le certificat avec le store
         let valide = true
         try {
-          pki.verifyCertificateChain(this.caStore, chaine)
+          if(opts.tiers && ca) {
+            debug("getCertificat Verification certificat avec store custom pour CA\n%O", ca)
+            const store = pki.createCaStore([ca])
+            pki.verifyCertificateChain(store, chaine)
+          } else {
+            pki.verifyCertificateChain(this.caStore, chaine)
+          }
           const certCache = {ts: new Date().getTime(), chaineForge: chaine}
           // debug("getCertificate: Ajouter certificat au cache : %O", certCache)
           this.cacheCertsParFingerprint[fingerprintEffectif] = certCache
@@ -458,7 +475,7 @@ class MilleGrillesPKI {
         }
 
       } catch(err) {
-        debug("Erreur chargement certificat sur disque, tenter via MQ : %O", err)
+        debug("Chargement certificat via redis MISS, tenter via MQ : %O", err)
       }
     }
 
@@ -523,7 +540,7 @@ class MilleGrillesPKI {
 }
 
 async function chargerCertificatFS(redisClient, fingerprint) {
-  const cleCert = 'certificat:' + fingerprint
+  const cleCert = 'certificat_v1:' + fingerprint
   return new Promise((resolve, reject) => {
     redisClient.get(cleCert, async (err, data)=>{
       if(err) return reject(err)
@@ -532,10 +549,12 @@ async function chargerCertificatFS(redisClient, fingerprint) {
       if(!data) return reject(new Error("Aucune donnee pour certificat " + fingerprint)) // No data
 
       try {
-        const listePems = JSON.parse(data)   //splitPEMCerts(data)
+        const certCache = JSON.parse(data)   //splitPEMCerts(data)
+        const listePems = certCache.pems
         const chaineForge = listePems.map(pem=>{
           return pki.certificateFromPem(pem)
         })
+        const caForge = certCache.ca?pki.certificateFromPem(certCache.ca):null
 
         const fingerprintCalcule = await hacherCertificat(listePems[0])
         var fingerprintMatch = false
@@ -551,7 +570,7 @@ async function chargerCertificatFS(redisClient, fingerprint) {
         // Touch - reset expiration
         redisClient.expire(cleCert, EXPIRATION_REDIS_CERT)
 
-        resolve(chaineForge)
+        resolve({certificat: chaineForge, ca: caForge})
       } catch(err) {
         return reject(err)
       }
