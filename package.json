@@ -1,6 +1,6 @@
 {
   "name": "millegrilles.nodejs",
-  "version": "2022.1.0",
+  "version": "2022.2.0",
   "description": "Utilitaires communs serveur NodeJS pour MilleGrilles",
   "author": "dugrema",
   "license": "MIT",
@@ -37,7 +37,7 @@
     "src"
   ],
   "peerDependencies": {
-    "@dugrema/millegrilles.utiljs": "github:dugrema/millegrilles.utiljs#2022.1",
+    "@dugrema/millegrilles.utiljs": "github:dugrema/millegrilles.utiljs#2022.2",
     "@dugrema/node-forge": "github:dugrema/forge#ed25519",
     "amqplib": "^0.8.0",
     "axios": "^0.24.0",
