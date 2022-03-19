@@ -9,7 +9,7 @@ const amqplib = require('amqplib')
 const RoutingKeyManager = require('./routingKeyManager')
 const GestionnaireCertificatMessages = require('./certificatManager')
 
-const MG_EXCHANGE_PROTEGE = '3.protege'
+const L1PUBLIC = '1.public'
 const ROUTING_CERTIFICAT = 'requete.certificat'
 const MG_ROUTING_EMETTRE_CERTIFICAT = 'evenement.certificat.infoCertificat'
 const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
@@ -37,7 +37,7 @@ class MilleGrillesAmqpDAO {
 
     this.reply_q = null;
     this.consumerTag = null;
-    this.exchange = opts.exchange || MG_EXCHANGE_PROTEGE
+    this.exchange = opts.exchange || L1PUBLIC
 
     // Q Custom
     // Format par Q : key = maQueue, value = {q, tag}

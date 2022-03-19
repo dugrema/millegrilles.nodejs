@@ -40,7 +40,7 @@
     "@dugrema/millegrilles.utiljs": "github:dugrema/millegrilles.utiljs#2022.2",
     "@dugrema/node-forge": "github:dugrema/forge#ed25519",
     "amqplib": "^0.8.0",
-    "axios": "^0.24.0",
+    "axios": "^0.26.1",
     "base64url": "^3.0.1",
     "blake2": "^4.1.1",
     "connect-redis": "^6.0.0",
