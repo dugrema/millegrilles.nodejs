@@ -3,6 +3,7 @@ const debugLib = require('debug')
 const debug = debugLib('millegrilles:routingKeyManager')
 const debugMessages = debugLib('millegrilles:routingKeyManager:messages')
 
+const L1PUBLIC = '1.public'
 const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
 
 class RoutingKeyManager {
@@ -12,7 +13,7 @@ class RoutingKeyManager {
 
     // Lien vers RabbitMQ, donne acces au channel, Q et routing keys
     this.mq = mq;
-    this.exchange = opts.exchange || '3.protege'
+    this.exchange = opts.exchange || L1PUBLIC
     this.socketio = opts.socketio  // Permet de faire le lien vers cliens Socket.IO
     debug("Exchange : %s", this.exchange)
 
