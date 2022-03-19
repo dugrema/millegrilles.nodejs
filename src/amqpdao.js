@@ -621,7 +621,7 @@ class MilleGrillesAmqpDAO {
     const messageString = JSON.stringify(messageFormatte)
 
     // Retourner promise
-    return this._transmettre(routingKey, messageString, correlation)
+    return this._transmettre(routingKey, messageString, correlation, opts)
   }
 
   transmettreEnveloppeTransaction(transactionFormattee, domaine) {
