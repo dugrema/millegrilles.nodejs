@@ -86,18 +86,20 @@ async function server6(app, configurerEvenements, opts) {
   console.info("server6.initialiser AMQPDAO connexion prete")
   console.info("server6.initialiser Redis host %s:%s", redisHost, redisPortStr)
   const redisClient = redis.createClient({
-    host: redisHost,
-    port: Number(redisPortStr),
-    user: 'client_nodejs',
+    username: 'client_nodejs',
     password: credentials.redis_password,
-    tls: {
+    socket: {
+      host: redisHost,
+      port: Number(redisPortStr), 
+      tls: true,
       ca: credentials.millegrille,
       cert: credentials.cert,
       key: credentials.key,
-      // rejectUnauthorized: false,
     }
   })
   debug("Redis client information :\n%O", redisClient)
+  await redisClient.connect()
+  await redisClient.ping()
   console.info("****************")
 
   // Injecter le redisClient dans pki
