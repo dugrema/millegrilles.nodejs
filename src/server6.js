@@ -19,16 +19,18 @@ const debug = debugLib('millegrilles:server6'),
 
 const CERT_CA_FILE = process.env.MG_MQ_CAFILE,
       CERT_FILE = process.env.MG_MQ_CERTFILE,
-      KEY_CA_FILE = process.env.MG_MQ_KEYFILE
+      KEY_CA_FILE = process.env.MG_MQ_KEYFILE,
+      REDIS_PWD_FILE = process.env.MG_MQ_REDIS_PASSWD
 
-// Preparer certificats
-function chargerCertificats() {
-  const certPems = {
+// Preparer certificats, mots de passe
+function chargerCredendials() {
+  const credentials = {
     millegrille: fs.readFileSync(CERT_CA_FILE).toString('utf-8'),
     cert: fs.readFileSync(CERT_FILE).toString('utf-8'),
     key: fs.readFileSync(KEY_CA_FILE).toString('utf-8'),
+    redis_password: fs.readFileSync(REDIS_PWD_FILE).toString('utf-8'),
   }
-  return certPems
+  return credentials
 }
 
 function chargerCookie() {
@@ -51,7 +53,7 @@ async function server6(app, configurerEvenements, opts) {
   opts = opts || {}
 
   // Preparer environnement
-  const certPems = chargerCertificats()
+  const credentials = chargerCredendials()
   const hostname = process.env.HOST,
         port = process.env.PORT || '443'
   const redisHost = process.env.MG_REDIS_HOST || 'redis',
@@ -67,7 +69,7 @@ async function server6(app, configurerEvenements, opts) {
 
   // Connecter a MQ
   debug("Initialiser MQ, opts: %O", opts)
-  await instPki.initialiserPkiPEMS(certPems)
+  await instPki.initialiserPkiPEMS(credentials)
   amqpdao.exchange = exchange
 
   let urlMq
@@ -86,10 +88,18 @@ async function server6(app, configurerEvenements, opts) {
   const redisClient = redis.createClient({
     host: redisHost,
     port: Number(redisPortStr),
-    tls: true,
-    ca: certPems.millegrille,
-    cert: certPems.cert,
-    key: certPems.key,
+    user: 'client_nodejs',
+    password: credentials.redis_password,
+    //tls: true,
+    // ca: CERT_CA_FILE,
+    socket: {
+      tls: true,
+      // ca: credentials.millegrille,
+      ca: CERT_CA_FILE,
+      cert: credentials.cert,
+      key: credentials.key,
+      rejectUnauthorized: false,
+    }
   })
   console.info("****************")
 
@@ -111,7 +121,7 @@ async function server6(app, configurerEvenements, opts) {
   }
 
   // Configurer server et socket.io
-  const server = _initServer(app, hostname, certPems)
+  const server = _initServer(app, hostname, credentials)
   const socketIo = _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts)
 
   // Injecter DAOs
