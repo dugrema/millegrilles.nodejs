@@ -106,10 +106,26 @@ async function server6(app, configurerEvenements, opts) {
   instPki.redisClient = redisClient
 
   // Morgan logging
-  const loggingType = process.env.NODE_ENV !== 'production' ? 'dev' : 'combined'
+  // const loggingType = process.env.NODE_ENV !== 'production' ? 'dev' : 'combined'
   app.use(morgan('combined'))
 
-  const sessionMiddleware = configurerSession(hostname, redisClient, opts)
+  // legacyMode: true
+  const redisClientLegacy = redis.createClient({
+    legacyMode: true,  // Requis pour session manager
+    username: 'client_nodejs',
+    password: credentials.redis_password,
+    socket: {
+      host: redisHost,
+      port: Number(redisPortStr), 
+      tls: true,
+      ca: credentials.millegrille,
+      cert: credentials.cert,
+      key: credentials.key,
+    }
+  })
+  await redisClientLegacy.connect()
+  await redisClientLegacy.ping()
+  const sessionMiddleware = configurerSession(hostname, redisClientLegacy, opts)
 
   // Utiliser la session pour toutes les routes
   app.use(sessionMiddleware)
@@ -119,10 +135,6 @@ async function server6(app, configurerEvenements, opts) {
     app.use(authentification)
   }
 
-  // Configurer server et socket.io
-  const server = _initServer(app, hostname, credentials)
-  const socketIo = _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts)
-
   // Injecter DAOs
   const {comptesUsagersDao} = initComptesUsagers(amqpdao)
   app.use((req, res, next)=>{
@@ -130,6 +142,14 @@ async function server6(app, configurerEvenements, opts) {
     req.comptesUsagersDao = comptesUsagersDao
     next()
   })
+  
+  // Configurer server
+  const server = _initServer(app, hostname, credentials)
+
+  // Configurer socket.io
+  const socketIo = _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts)
+
+  // Injecter DAOS pour socketIo
   socketIo.use((socket, next)=>{
     socket.amqpdao = amqpdao
     socket.comptesUsagersDao = comptesUsagersDao
@@ -274,9 +294,6 @@ function _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements,
 
   debug("Demarrage socket.io avec config %O", ioConfig)
   var socketIo = socketio(server, ioConfig)
-
-  // Morgan logging
-  const loggingType = process.env.NODE_ENV !== 'production' ? 'dev' : 'combined'
 
   // Injecter socketIo dans le routingKeyManager pour supporter reception
   // de messages.
