@@ -371,12 +371,7 @@ class MilleGrillesPKI {
 
     if(this.redisClient) {
       debug("Sauvegarder/touch certificat dans client redis : %s", fingerprintBase58)
-      const resultat = await new Promise((resolve, reject)=>{
-        this.redisClient.expire(cleCert, EXPIRATION_REDIS_CERT, (err, res)=>{
-          if(err) return reject(err)
-          resolve(res)
-        })
-      })
+      const resultat = await this.redisClient.expire(cleCert, EXPIRATION_REDIS_CERT)
       fichierExiste = resultat > 0
       debug("Certificat %s existe?%s", fingerprintBase58, fichierExiste)
     }
@@ -406,7 +401,7 @@ class MilleGrillesPKI {
 
         if(this.redisClient) {
           const valeurCache = {'pems': chaine_pem, 'ca': certificatCaTiers}
-          this.redisClient.set(cleCert, JSON.stringify(valeurCache), 'NX', 'EX', EXPIRATION_REDIS_CERT)
+          await this.redisClient.set(cleCert, JSON.stringify(valeurCache), 'NX', 'EX', EXPIRATION_REDIS_CERT)
         }
 
         // Informatif seulement : verifier si c'est bien le certificat qui a ete demande
@@ -541,41 +536,33 @@ class MilleGrillesPKI {
 
 async function chargerCertificatFS(redisClient, fingerprint) {
   const cleCert = 'certificat_v1:' + fingerprint
-  return new Promise((resolve, reject) => {
-    redisClient.get(cleCert, async (err, data)=>{
-      if(err) return reject(err)
-      debug("Resultat chargement cert FS : %O", data)
+  const data = await redisClient.get(cleCert)
+  debug("chargerCertificatFS Resultat chargement cert redis : %O", data)
 
-      if(!data) return reject(new Error("Aucune donnee pour certificat " + fingerprint)) // No data
+  if(!data) return reject(new Error("Aucune donnee pour certificat " + fingerprint)) // No data
 
-      try {
-        const certCache = JSON.parse(data)   //splitPEMCerts(data)
-        const listePems = certCache.pems
-        const chaineForge = listePems.map(pem=>{
-          return pki.certificateFromPem(pem)
-        })
-        const caForge = certCache.ca?pki.certificateFromPem(certCache.ca):null
-
-        const fingerprintCalcule = await hacherCertificat(listePems[0])
-        var fingerprintMatch = false
-        if(fingerprintCalcule === fingerprint) {
-          fingerprintMatch = true
-        }
-        if( ! fingerprintMatch ) {
-          // Supprimer certificat invalide
-          redisClient.del(cleCert)
-          return reject('Fingerprint ' + fingerprintCalcule + ' ne correspond pas a : ' + fingerprint + '. Entree supprimee de redis.');
-        }
-
-        // Touch - reset expiration
-        redisClient.expire(cleCert, EXPIRATION_REDIS_CERT)
-
-        resolve({certificat: chaineForge, ca: caForge})
-      } catch(err) {
-        return reject(err)
-      }
-    })
+  const certCache = JSON.parse(data)   //splitPEMCerts(data)
+  const listePems = certCache.pems
+  const chaineForge = listePems.map(pem=>{
+    return pki.certificateFromPem(pem)
   })
+  const caForge = certCache.ca?pki.certificateFromPem(certCache.ca):null
+
+  const fingerprintCalcule = await hacherCertificat(listePems[0])
+  var fingerprintMatch = false
+  if(fingerprintCalcule === fingerprint) {
+    fingerprintMatch = true
+  }
+  if( ! fingerprintMatch ) {
+    // Supprimer certificat invalide
+    await redisClient.del(cleCert)
+    throw Error('Fingerprint ' + fingerprintCalcule + ' ne correspond pas a : ' + fingerprint + '. Entree supprimee de redis.')
+  }
+
+  // Touch - reset expiration
+  await redisClient.expire(cleCert, EXPIRATION_REDIS_CERT)
+
+  return {certificat: chaineForge, ca: caForge}
 
 }
 
