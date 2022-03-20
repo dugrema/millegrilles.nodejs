@@ -90,17 +90,14 @@ async function server6(app, configurerEvenements, opts) {
     port: Number(redisPortStr),
     user: 'client_nodejs',
     password: credentials.redis_password,
-    //tls: true,
-    // ca: CERT_CA_FILE,
-    socket: {
-      tls: true,
-      // ca: credentials.millegrille,
-      ca: CERT_CA_FILE,
+    tls: {
+      ca: credentials.millegrille,
       cert: credentials.cert,
       key: credentials.key,
-      rejectUnauthorized: false,
+      // rejectUnauthorized: false,
     }
   })
+  debug("Redis client information :\n%O", redisClient)
   console.info("****************")
 
   // Injecter le redisClient dans pki
