@@ -17,12 +17,16 @@ const debug = debugLib('millegrilles:server6'),
       debugConnexions = debugLib('millegrilles:server6:connexions'),
       redisStore = redisConnect(session)
 
+const CERT_CA_FILE = process.env.MG_MQ_CAFILE,
+      CERT_FILE = process.env.MG_MQ_CERTFILE,
+      KEY_CA_FILE = process.env.MG_MQ_KEYFILE
+
 // Preparer certificats
 function chargerCertificats() {
   const certPems = {
-    millegrille: fs.readFileSync(process.env.MG_MQ_CAFILE).toString('utf-8'),
-    cert: fs.readFileSync(process.env.MG_MQ_CERTFILE).toString('utf-8'),
-    key: fs.readFileSync(process.env.MG_MQ_KEYFILE).toString('utf-8'),
+    millegrille: fs.readFileSync(CERT_CA_FILE).toString('utf-8'),
+    cert: fs.readFileSync(CERT_FILE).toString('utf-8'),
+    key: fs.readFileSync(KEY_CA_FILE).toString('utf-8'),
   }
   return certPems
 }
@@ -82,6 +86,10 @@ async function server6(app, configurerEvenements, opts) {
   const redisClient = redis.createClient({
     host: redisHost,
     port: Number(redisPortStr),
+    tls: true,
+    ca: certPems.millegrille,
+    cert: certPems.cert,
+    key: certPems.key,
   })
   console.info("****************")
 
