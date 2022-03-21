@@ -216,8 +216,8 @@ class MilleGrillesAmqpDAO {
                 // Fallback sur https;//nginx/...
                 const urlConnexion = 'https://nginx/administration/ajouterCompte'
                 console.log("Connecter a : %s\nCerts\n%s\nCA\n%s", urlConnexion, cert, ca)
-
-                return axios({method: 'post', url: urlConnexion, httpsAgent})
+                const data = {'certificat': cert}
+                return axios({method: 'post', url: urlConnexion, data, httpsAgent})
               }
 
               return Promise.resolve()  // Rien a faire, on reessaiera plus tard
