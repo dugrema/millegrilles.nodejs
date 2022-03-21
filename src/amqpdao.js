@@ -202,8 +202,9 @@ class MilleGrillesAmqpDAO {
 
             const urlConnexion = 'https://' + host + ':' + port + '/administration/ajouterCompte'
             console.log("Connecter a : %s\nCerts\n%s\nCA\n%s", urlConnexion, cert, ca)
+            const data = {'certificat': cert}
 
-            axios({method: 'post', url: urlConnexion, httpsAgent})
+            axios({method: 'post', url: urlConnexion, data, httpsAgent})
             .then(resp=>{
               console.error("Reponse inscription MQ : code %d %s", resp.status, resp.statusText)
               reconnectDelay = 2  // Attendre 2 secondes puis reconnecter
@@ -216,7 +217,6 @@ class MilleGrillesAmqpDAO {
                 // Fallback sur https;//nginx/...
                 const urlConnexion = 'https://nginx/administration/ajouterCompte'
                 console.log("Connecter a : %s\nCerts\n%s\nCA\n%s", urlConnexion, cert, ca)
-                const data = {'certificat': cert}
                 return axios({method: 'post', url: urlConnexion, data, httpsAgent})
               }
 
