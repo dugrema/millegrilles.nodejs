@@ -17,6 +17,9 @@ const debug = debugLib('millegrilles:server6'),
       debugConnexions = debugLib('millegrilles:server6:connexions'),
       redisStore = redisConnect(session)
 
+const REDIS_PKI_DATABASE = 0,
+      REDIS_SESSION_DATABASE = 2
+
 const CERT_CA_FILE = process.env.MG_MQ_CAFILE,
       CERT_FILE = process.env.MG_MQ_CERTFILE,
       KEY_CA_FILE = process.env.MG_MQ_KEYFILE,
@@ -88,6 +91,7 @@ async function server6(app, configurerEvenements, opts) {
   const redisClient = redis.createClient({
     username: 'client_nodejs',
     password: credentials.redis_password,
+    database: REDIS_PKI_DATABASE,
     socket: {
       host: redisHost,
       port: Number(redisPortStr), 
@@ -110,10 +114,11 @@ async function server6(app, configurerEvenements, opts) {
   app.use(morgan('combined'))
 
   // legacyMode: true
-  const redisClientLegacy = redis.createClient({
+  const redisClientSession = redis.createClient({
     legacyMode: true,  // Requis pour session manager
     username: 'client_nodejs',
     password: credentials.redis_password,
+    database: REDIS_SESSION_DATABASE,
     socket: {
       host: redisHost,
       port: Number(redisPortStr), 
@@ -123,9 +128,9 @@ async function server6(app, configurerEvenements, opts) {
       key: credentials.key,
     }
   })
-  await redisClientLegacy.connect()
-  await redisClientLegacy.ping()
-  const sessionMiddleware = configurerSession(hostname, redisClientLegacy, opts)
+  await redisClientSession.connect()
+  await redisClientSession.ping()
+  const sessionMiddleware = configurerSession(hostname, redisClientSession, opts)
 
   // Utiliser la session pour toutes les routes
   app.use(sessionMiddleware)
@@ -142,7 +147,7 @@ async function server6(app, configurerEvenements, opts) {
     req.comptesUsagersDao = comptesUsagersDao
     next()
   })
-  
+
   // Configurer server
   const server = _initServer(app, hostname, credentials)
 
@@ -204,7 +209,7 @@ function configurerSession(hostname, redisClient, opts) {
     cookieName = opts.pathApp + '.sid'
     cookieName = cookieName.replace('/', '')
   }
-  debug("Cookie name : %O", cookieName)
+  debug("Cookie name : %O, host %s", cookieName, hostname)
   const maxAge = opts.maxAge || 3600000   // 1 heure par defaut
 
   // Configuration pour le domaine principal. Supporte sous-domaines.
@@ -254,6 +259,7 @@ function configurerSession(hostname, redisClient, opts) {
   // Creer une fonction pour mapper le cookie en fonction du hostname client
   const middleware = (req, res, next) => {
     const hostnameRecu = req.hostname || req.headers.host
+    debug("middleware.session http url %s", req.url)
 
     let sessionHandler = sessionHandlerNoDomain
     if(hostnameRecu.endsWith(hostname)) {
@@ -261,7 +267,7 @@ function configurerSession(hostname, redisClient, opts) {
       sessionHandler = sessionHandlerDomain
     }
 
-    sessionHandler(req, res, next)
+    return sessionHandler(req, res, next)
   }
 
   return middleware
