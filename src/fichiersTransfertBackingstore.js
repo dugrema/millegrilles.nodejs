@@ -5,6 +5,7 @@ const fsPromises = require('fs/promises')
 const path = require('path')
 const readdirp = require('readdirp')
 const https = require('https')
+const axios = require('axios')
 
 const { VerificateurHachage } = require('./hachage')
 
@@ -22,7 +23,7 @@ const CODE_HACHAGE_MISMATCH = 1,
 
 let _timerPutFichiers = null,
     _amqpdao = null,
-    _urlPutConsignation = null,
+    _urlConsignationTransfert = null,
     _httpsAgent = null,
     _pathStaging = null
 
@@ -32,7 +33,7 @@ const _queueItems = []
 function configurerThreadPutFichiersConsignation(url, amqpdao, opts) {
     opts = opts || {}
 
-    _urlPutConsignation = url
+    _urlConsignationTransfert = new URL(''+url)
     _amqpdao = amqpdao
 
     _pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
@@ -40,8 +41,8 @@ function configurerThreadPutFichiersConsignation(url, amqpdao, opts) {
     // Configurer httpsAgent avec les certificats/cles
     const pki = amqpdao.pki
     _httpsAgent = new https.Agent({
-        rejectUnauthorized: true,
-        ca: pki.ca,
+        rejectUnauthorized: false,
+        // ca: pki.ca,
         cert: pki.chainePEM,
         key: pki.cle,
     })
@@ -316,6 +317,9 @@ async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
         await fsPromises.cp(pathUploadItem, pathReadyItem, {recursive: true})
         await fsPromises.rm(pathUploadItem, {recursive: true})
     }
+
+    // Fichier pret, on l'ajoute a la liste de transfert
+    ajouterFichierConsignation(item)
 }
 
 function deleteStaging(pathStaging, item) {
@@ -416,17 +420,49 @@ async function transfererFichierVersConsignation(amqpdao, pathReady, item) {
     const hachage = etat.hachage
 
     // Verifier les transactions (signature)
-    await traiterTransactions(amqpdao, pathReady, item)
+    const transactions = await traiterTransactions(amqpdao, pathReady, item)
 
     // Verifier le fichier (hachage)
     await verifierFichier(hachage, pathReadyItem)
 
     debug("Transactions et fichier OK : %s", pathReadyItem)
+
+    const promiseReaddirp = readdirp(pathReadyItem, {
+        type: 'files',
+        fileFilter: '*.part',
+        depth: 1,
+    })
+    for await (const entry of promiseReaddirp) {
+        // debug("Entry path : %O", entry);
+        const fichierPart = entry.basename
+        const position = Number(fichierPart.split('.').shift())
+        debug("Traiter PUT pour item %s position %d", item, position)
+        const streamReader = fs.createReadStream(entry.fullPath)
+        await putAxios(_urlConsignationTransfert, item, position, streamReader)
+    }
+
+    // Faire POST pour confirmer upload, acheminer transactions
+    const urlPost = new URL(''+_urlConsignationTransfert)
+    urlPost.pathname = path.join(urlPost.pathname, item)
+    const reponsePost = await axios({
+        method: 'POST',
+        httpsAgent: _httpsAgent,
+        url: urlPost.href,
+        data: transactions,
+    })
+
+    // Le fichier a ete transfere avec succes (aucune exception)
+    // On peut supprimer le repertoire ready local
+    debug("Fichier %s transfere avec succes vers consignation", item)
+    fsPromises.rm(pathReadyItem, {recursive: true})
+        .catch(err=>console.error("Erreur suppression repertoire %s apres consignation reussie : %O", item, err))
+    
 }
 
 async function traiterTransactions(amqpdao, pathReady, item) {
     let transactionContenu = null, transactionCles = null
     const pki = amqpdao.pki
+    const transactions = {}
     try {
         const pathReadyItemCles = path.join(pathReady, item, FICHIER_TRANSACTION_CLES)
         transactionCles = JSON.parse(await fsPromises.readFile(pathReadyItemCles))
@@ -441,19 +477,27 @@ async function traiterTransactions(amqpdao, pathReady, item) {
     }
 
     if(transactionCles) {
-        try { await validerMessage(pki, transactionCles) } 
+        try { 
+            await validerMessage(pki, transactionCles) 
+            transactions.cles = transactionCles
+        } 
         catch(err) {
             err.code = CODE_CLES_SIGNATURE_INVALIDE
             throw err
         }
     }
     if(transactionContenu) {
-        try { await validerMessage(pki, transactionContenu) } 
+        try { 
+            await validerMessage(pki, transactionContenu) 
+            transactions.transaction = transactionContenu
+        } 
         catch(err) {
             err.code = CODE_TRANSACTION_SIGNATURE_INVALIDE
             throw err
         }
     }
+
+    return transactions
 }
 
 /**
@@ -465,8 +509,8 @@ async function traiterTransactions(amqpdao, pathReady, item) {
  */
 async function putAxios(url, item, position, dataBuffer) {
     // Emettre POST avec info maitredescles
-    const urlPosition = new URL(url.href)
-    urlPosition.pathname = path.join('/fichiers_transfert', item, ''+position)
+    const urlPosition = new URL(''+url)
+    urlPosition.pathname = path.join(urlPosition.pathname, item, ''+position)
   
     debug("putAxios url %s taille %s", urlPosition, dataBuffer.length)
  
@@ -481,6 +525,8 @@ async function putAxios(url, item, position, dataBuffer) {
     })
   
     debug("Reponse put %s : %s", urlPosition.href, reponsePut.status)
+
+    return reponsePut
 }
 
 module.exports = { 
