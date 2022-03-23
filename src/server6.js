@@ -57,13 +57,21 @@ async function server6(app, configurerEvenements, opts) {
 
   // Preparer environnement
   const credentials = chargerCredendials()
-  const hostname = process.env.HOST,
-        port = process.env.PORT || '443'
+  const hostnameEnv = process.env.HOST || 'localhost',
+        portEnv = process.env.PORT,
+        publicUrl = process.env.PUBLIC_URL
   const redisHost = process.env.MG_REDIS_HOST || 'redis',
         redisPortStr = process.env.MG_REDIS_PORT || '6379'
   
   const exchange = opts.exchange || process.env.MG_EXCHANGE_DEFAUT || '3.protege'
   console.info("****************")
+
+  // Creer un URL bien forme pour le host, permet de valider le hostname/port
+  const urlHost = publicUrl?new URL(publicUrl):new URL(`https://${hostnameEnv}:${portEnv}`)
+  if(portEnv) urlHost.port = Number(portEnv)
+  const hostname = urlHost.hostname,
+        port = urlHost.port || 443
+
   debug("server6.initialiser Utilisation hostname %s, exchange %s", hostname, exchange)
 
   // Charger PKI
@@ -171,7 +179,7 @@ async function server6(app, configurerEvenements, opts) {
   server.listen(port)
 
   return {
-    server, socketIo, amqpdao
+    server, socketIo, amqpdao, urlHost,
   }
 }
 

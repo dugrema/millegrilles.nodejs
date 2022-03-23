@@ -4,6 +4,8 @@ const fs = require('fs')
 const fsPromises = require('fs/promises')
 const path = require('path')
 const readdirp = require('readdirp')
+const https = require('https')
+
 const { VerificateurHachage } = require('./hachage')
 
 const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/transfertStaging',
@@ -11,7 +13,8 @@ const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/transfertStaging
       PATH_STAGING_READY = 'ready',
       FICHIER_TRANSACTION_CLES = 'transactionCles.json',
       FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
-      INTERVALLE_PUT_CONSIGNATION = 900_000
+      FICHIER_ETAT = 'etat.json',
+      INTERVALLE_PUT_CONSIGNATION = 15_000
 
 const CODE_HACHAGE_MISMATCH = 1,
       CODE_CLES_SIGNATURE_INVALIDE = 2,
@@ -20,14 +23,19 @@ const CODE_HACHAGE_MISMATCH = 1,
 let _timerPutFichiers = null,
     _amqpdao = null,
     _urlPutConsignation = null,
-    _httpsAgent = null
+    _httpsAgent = null,
+    _pathStaging = null
 
 // Queue de fichiers a telecharger
 const _queueItems = []
 
-function configurerThreadPutFichiersConsignation(url, amqpdao) {
+function configurerThreadPutFichiersConsignation(url, amqpdao, opts) {
+    opts = opts || {}
+
     _urlPutConsignation = url
     _amqpdao = amqpdao
+
+    _pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
 
     // Configurer httpsAgent avec les certificats/cles
     const pki = amqpdao.pki
@@ -54,31 +62,47 @@ function ajouterFichierConsignation(item) {
 
 async function _threadPutFichiersConsignation() {
     try {
+        debug(new Date() + " Run threadPutFichiersConsignation")
         // Clear timer si present
         if(_timerPutFichiers) clearTimeout(_timerPutFichiers)
         _timerPutFichiers = null
 
-        const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
-        const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY, item)
+        const pathReady = path.join(_pathStaging, PATH_STAGING_READY)
 
+        // Verifier si on a des items dans la Q (prioritaires)
         if(_queueItems.length === 0) {
-            // Remplir la queue avec contenu du repertoire ready
+            debug("_threadPutFichiersConsignation Queue vide, on parcours le repertoire %s", pathReady)
+            // Traiter le contenu du repertoire
+            const promiseReaddirp = readdirp(pathReady, {
+                type: 'directories',
+                depth: 1,
+            })
+
+            for await (const entry of promiseReaddirp) {
+                // debug("Entry path : %O", entry);
+                const item = entry.basename
+                debug("Traiter PUT pour item %s", item)
+                await transfererFichierVersConsignation(_amqpdao, pathReady, item)
+            }
         }
 
+        // Process les items recus durant le traitement
+        debug("_threadPutFichiersConsignation Queue avec %d items", _queueItems.length, pathReady)
         while(_queueItems.length > 0) {
-            const item = _queueItems.shift()
+            const item = _queueItems.shift()  // FIFO
             debug("Traiter PUT pour item %s", item)
+            await transfererFichierVersConsignation(_amqpdao, pathReady, item)
         }
 
     } catch(err) {
-
+        console.error(new Date() + ' _threadPutFichiersConsignation Erreur execution cycle : %O', err)
     } finally {
         _traitementPutFichiersEnCours = false
-
+        debug("_threadPutFichiersConsignation Fin execution cycle, attente %s ms", INTERVALLE_PUT_CONSIGNATION)
         // Redemarrer apres intervalle
         _timerPutFichiers = setTimeout(()=>{
             _timerPutFichiers = null
-            threadPutFichiersConsignation(_pki, opts).catch(err=>console.error("Erreur run _threadPutFichiersConsignation: %O", err))
+            _threadPutFichiersConsignation().catch(err=>console.error("Erreur run _threadPutFichiersConsignation: %O", err))
         }, INTERVALLE_PUT_CONSIGNATION)
 
     }
@@ -271,6 +295,16 @@ async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
         throw err
     }
 
+    // Conserver information d'etat/work
+    const etat = {
+        hachage,
+        created: new Date().getTime(),
+        lastProcessed: new Date().getTime(),
+        retryCount: 0,
+    }
+    const pathEtat = path.join(pathUploadItem, FICHIER_ETAT)
+    await fsPromises.writeFile(pathEtat, JSON.stringify(etat), {mode: 0o600})
+
     const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY, item)
 
     try {
@@ -366,36 +400,61 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
     return true
 }
 
-async function transfererFichierVersConsignation(pathStaging, item) {
+async function transfererFichierVersConsignation(amqpdao, pathReady, item) {
+    const pathReadyItem = path.join(pathReady, item)
+    debug("Traiter transfert vers consignation de %s", pathReadyItem)
 
-    await traiterTransactions(pathStaging, item)
+    let etat = null
+    {
+        // Charger etat et maj dates/retry count
+        const pathEtat = path.join(pathReadyItem, FICHIER_ETAT)
+        etat = JSON.parse(await fsPromises.readFile(pathEtat))
+        etat.lastProcessed = new Date().getTime()
+        etat.retryCount++
+        await fsPromises.writeFile(pathEtat, JSON.stringify(etat), {mode: 0o600})
+    }
+    const hachage = etat.hachage
 
+    // Verifier les transactions (signature)
+    await traiterTransactions(amqpdao, pathReady, item)
 
+    // Verifier le fichier (hachage)
+    await verifierFichier(hachage, pathReadyItem)
+
+    debug("Transactions et fichier OK : %s", pathReadyItem)
 }
 
-async function traiterTransactions(pathStaging, item) {
+async function traiterTransactions(amqpdao, pathReady, item) {
     let transactionContenu = null, transactionCles = null
+    const pki = amqpdao.pki
     try {
-        const pathReadyItemCles = path.join(pathStaging, PATH_STAGING_READY, item, FICHIER_TRANSACTION_CLES)
-        transactionCles = await fs.readFile(pathReadyItemCles)
+        const pathReadyItemCles = path.join(pathReady, item, FICHIER_TRANSACTION_CLES)
+        transactionCles = JSON.parse(await fsPromises.readFile(pathReadyItemCles))
     } catch(err) {
         // Pas de cles
     }
     try {
-        const pathReadyItemTransaction = path.join(pathStaging, PATH_STAGING_READY, item, FICHIER_TRANSACTION_CONTENU)
-        transactionContenu = await fs.readFile(pathReadyItemTransaction)
+        const pathReadyItemTransaction = path.join(pathReady, item, FICHIER_TRANSACTION_CONTENU)
+        transactionContenu = JSON.parse(await fsPromises.readFile(pathReadyItemTransaction))
     } catch(err) {
         // Pas de transaction de contenu
     }
 
     if(transactionCles) {
-        throw new Error("TODO")
+        try { await validerMessage(pki, transactionCles) } 
+        catch(err) {
+            err.code = CODE_CLES_SIGNATURE_INVALIDE
+            throw err
+        }
     }
     if(transactionContenu) {
-        throw new Error("TODO")
+        try { await validerMessage(pki, transactionContenu) } 
+        catch(err) {
+            err.code = CODE_TRANSACTION_SIGNATURE_INVALIDE
+            throw err
+        }
     }
 }
-
 
 /**
  * PUT un fichier (part) avec axios vers consignationfichiers.
@@ -425,6 +484,8 @@ async function putAxios(url, item, position, dataBuffer) {
 }
 
 module.exports = { 
-    middlewareRecevoirFichier, middlewareReadyFichier, middlewareDeleteStaging,
     configurerThreadPutFichiersConsignation,
+    middlewareRecevoirFichier, 
+    middlewareReadyFichier, 
+    middlewareDeleteStaging,
 }
