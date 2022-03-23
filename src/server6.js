@@ -179,7 +179,7 @@ async function server6(app, configurerEvenements, opts) {
   server.listen(port)
 
   return {
-    server, socketIo, amqpdao, urlHost,
+    server, socketIo, amqpdao, urlHost, urlMq,
   }
 }
 
