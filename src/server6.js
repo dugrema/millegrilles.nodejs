@@ -112,6 +112,7 @@ async function server6(app, configurerEvenements, opts) {
   debug("Redis client information :\n%O", redisClient)
   await redisClient.connect()
   await redisClient.ping()
+  console.info("Connexion Redis OK")
   console.info("****************")
 
   // Injecter le redisClient dans pki
@@ -153,6 +154,7 @@ async function server6(app, configurerEvenements, opts) {
   app.use((req, res, next)=>{
     req.amqpdao = amqpdao
     req.comptesUsagersDao = comptesUsagersDao
+    req.redisClient = redisClient
     next()
   })
 
