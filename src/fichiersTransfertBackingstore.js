@@ -15,7 +15,7 @@ const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/transfertStaging
       FICHIER_TRANSACTION_CLES = 'transactionCles.json',
       FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
       FICHIER_ETAT = 'etat.json',
-      INTERVALLE_PUT_CONSIGNATION = 15_000
+      INTERVALLE_PUT_CONSIGNATION = 900_000
 
 const CODE_HACHAGE_MISMATCH = 1,
       CODE_CLES_SIGNATURE_INVALIDE = 2,
@@ -47,10 +47,11 @@ function configurerThreadPutFichiersConsignation(url, amqpdao, opts) {
         key: pki.cle,
     })
 
+    // Premiere execution apres redemarrage, delai court
     _timerPutFichiers = setTimeout(()=>{
         _timerPutFichiers = null
         _threadPutFichiersConsignation().catch(err=>console.error("Erreur run _threadPutFichiersConsignation: %O", err))
-    }, INTERVALLE_PUT_CONSIGNATION)
+    }, 20_000)
 
 }
 
@@ -125,8 +126,10 @@ function middlewareRecevoirFichier(opts) {
     fsPromises.mkdir(pathUpload, {recursive: true, mode: 0o750}).catch(err=>console.error("Erreur preparer path staging upload : %O", err))
 
     // Retourner fonction middleware pour recevoir un fichier (part)
-    return async (req, res) => {
-        const {position, correlation} = req.params
+    return async (req, res, next) => {
+        // const {position, correlation} = req.params
+        const correlation = req.params.correlation,
+              position = req.params.position || 0
         debug("middlewareRecevoirFichier PUT %s position %d", correlation, position)
         
         // Verifier si le repertoire existe, le creer au besoin
@@ -148,7 +151,13 @@ function middlewareRecevoirFichier(opts) {
             return res.sendStatus(500)
         }
 
-        res.sendStatus(200)
+        if(opts.chainOnSuccess === true) {
+            // Chainage
+            debug("middlewareRecevoirFichier chainage next")
+            next()
+        } else {
+            res.sendStatus(200)
+        }
     }
 }
 
@@ -174,7 +183,7 @@ function middlewareReadyFichier(amqpdao, opts) {
     
     return async (req, res, next) => {
         const correlation = req.params.correlation
-        const informationFichier = req.body
+        const informationFichier = req.body || {}
         debug("middlewareReadyFichier Traitement post %s upload %O", correlation, informationFichier)
       
         const commandeMaitreCles = informationFichier.cles
@@ -255,7 +264,7 @@ async function getPathRecevoir(pathStaging, item, position) {
  */
 async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
     opts = opts || {}
-    debug("readyStaging amqpdao : %O", amqpdao)
+    debug("readyStaging item %s, hachage: %s", item, hachage)
     const pki = amqpdao.pki
     const pathUploadItem = path.join(pathStaging, PATH_STAGING_UPLOAD, item)
 
