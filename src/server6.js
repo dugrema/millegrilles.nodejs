@@ -498,7 +498,7 @@ function subscribe(socket, params, cb) {
     debugConnexions("Subscribe : %O", params)
 
     const routingKeys = params.routingKeys || []
-    const exchanges = params.exchange || []
+    const exchanges = params.exchanges || []
     const userId = params.userId
     debugConnexions("Subscribe exchanges %O, %O, userId=%O", exchanges, routingKeys, userId)
 
@@ -539,12 +539,14 @@ function unsubscribe(socket, params, cb) {
     exchanges.forEach(ex=>{
       routingKeys.forEach(rk=>{
         const eventName = `${ex}/${rk}`
+        debug('Unsubscribe socket %s de %s', socket.id, eventName)
         socket.leave(eventName)
       })
     })
-    if(cb) cb({ok: true, routingKeys})
+    
+    if(cb) cb({ok: true, routingKeys, exchanges})
   } catch(err) {
-    console.error('server6.subscribe error : %O', err)
+    console.error('server6.unsubscribe error : %O', err)
     if(cb) cb({ok: false, err: ''+err})
   }
 
