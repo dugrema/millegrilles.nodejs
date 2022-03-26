@@ -497,40 +497,55 @@ function subscribe(socket, params, cb) {
   try {
     debugConnexions("Subscribe : %O", params)
 
-    const routingKeys = params.routingKeys
-    const niveauxSecurite = params.exchange || ['2.prive']
+    const routingKeys = params.routingKeys || []
+    const exchanges = params.exchange || []
     const userId = params.userId
-    debugConnexions("Subscribe securite %O, %O, userId=%O", niveauxSecurite, routingKeys, userId)
+    debugConnexions("Subscribe exchanges %O, %O, userId=%O", exchanges, routingKeys, userId)
+
+    if(routingKeys.length === 0 || exchanges.length === 0) {
+      debug("subscribe ERROR routingKeys ou exchanges vide : %O / %O", routingKeys, exchanges)
+      if(cb) cb({ok: false, err: "Routings keys/exchanges vide"})
+      return
+    }
 
     const amqpdao = socket.amqpdao
     const channel = amqpdao.channel,
           reply_q = amqpdao.reply_q
 
-    niveauxSecurite.forEach(niveauSecurite=>{
-      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q, {userId})
+    exchanges.forEach(exchange=>{
+      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, exchange, channel, reply_q, {userId})
     })
 
     debugConnexions("Socket events apres subscribe: %O", Object.keys(socket._events))
 
-    if(cb) cb(true)
+    if(cb) cb({ok: true, routingKeys, exchanges})
   } catch(err) {
     console.error('server6.subscribe error : %O', err)
-    if(cb) cb(false)
+    if(cb) cb({ok: false, err: ''+err})
   }
 }
 
 function unsubscribe(socket, params, cb) {
   try {
-    const routingKeys = params.routingKeys
-    if(routingKeys) {
-      routingKeys.forEach(rk=>{
-        socket.leave(rk)
-      })
+    const routingKeys = params.routingKeys || [],
+          exchanges = params.exchanges || []
+
+    if(routingKeys.length === 0 || exchanges.length === 0) {
+      debug("unsubscribe ERROR routingKeys ou exchanges vide : %O / %O", routingKeys, exchanges)
+      if(cb) cb({ok: false, err: "Routings keys/exchanges vide"})
+      return
     }
-    if(cb) cb(true)
+
+    exchanges.forEach(ex=>{
+      routingKeys.forEach(rk=>{
+        const eventName = `${ex}/${rk}`
+        socket.leave(eventName)
+      })
+    })
+    if(cb) cb({ok: true, routingKeys})
   } catch(err) {
     console.error('server6.subscribe error : %O', err)
-    if(cb) cb(false)
+    if(cb) cb({ok: false, err: ''+err})
   }
 
 }
