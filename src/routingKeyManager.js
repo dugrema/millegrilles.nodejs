@@ -77,33 +77,26 @@ class RoutingKeyManager {
           // Messages niveau
 
           // Le routing est "type message"."Domaine"."action".
-          // Domaine peut etre splitte en "Domaine"."SousDomaine"
+          // Domaine peut etre splitte en "Domaine"."Partition"
           // Le nom de la room commence toujours par le niveau de securite (exchange)
-          const rooms = [
-            // Supporter capture de tous les evenements
-            exchange + '/' + splitKey[0] + '.#',
-
-            // Pour supporter toutes les actions d'un domaine, on a room : evenement.DOMAINE.*
-            exchange + '/' + [...splitKey.slice(0, 2), '*'].join('.'),
-
-            // Pour supporter une action sur tous les domaines, on a evenement.#.ACTION
-            exchange + '/' + [splitKey[0], '#', splitKey[2]].join('.'),
-
-            // Match exact pour evenement.DOMAINE.ACTION
-            exchange + '/' + [...splitKey.slice(0, 3)].join('.'),
-
-            // Nom room avec key complete
-            exchange + '/' + [...splitKey].join('.'),
+          const roomsExact = [
+            // Nom room avec key complete (incluant partition)
+            exchange + '/' + splitKey.join('.'),
           ]
+
+          if(splitKey.length === 4) {
+            // Ajouter room sans la partition
+            roomsExact.push([splitKey[0], splitKey[1], splitKey[3]].join('.'))
+          }
 
           if(userId) {
             // Routage avec userId
-            rooms.push(userId + '/' + [...splitKey].join('.'))
+            roomsExact.push(userId + '/' + [...splitKey].join('.'))
           }
 
           // Combiner toutes les rooms en une seule liste
           var room = this.socketio
-          rooms.forEach(roomName=>{room = room.to(roomName)})
+          roomsExact.forEach(roomName=>{room = room.to(roomName)})
 
           const contenuEvenement = {
             routingKey,
@@ -113,7 +106,7 @@ class RoutingKeyManager {
           if(properties.correlationId) {
             contenuEvenement[correlationId] = properties.correlationId
           }
-          debugMessages("Emission evenement sur rooms %s Socket.IO\n%O", rooms, contenuEvenement)
+          debugMessages("Emission evenement sur rooms %s Socket.IO\n%O", roomsExact, contenuEvenement)
 
           // room.emit('mq_evenement', contenuEvenement)
 
@@ -122,8 +115,23 @@ class RoutingKeyManager {
           const rkSplit = routingKey.split('.')
           const nomAction = rkSplit[rkSplit.length-1]
           const domaineAction = [rkSplit[0], rkSplit[1], nomAction].join('.')
-          debugMessages("Emission evenement rooms %s Socket.IO domaineAction %s\n%O", rooms, domaineAction, contenuEvenement)
+          debugMessages("Emission evenement rooms %s Socket.IO domaineAction %s\n%O", roomsExact, domaineAction, contenuEvenement)
           room.emit(domaineAction, contenuEvenement)
+
+          // Rooms avec wildcards (evenements seulement)
+          if(rkSplit[0] === 'evenement') {
+            // Room pour toutes les actions d'un domaine
+            const eventNameToutesActionsDomaine = [...splitKey.slice(0, 2), '*'].join('.')
+            const nomRoomToutesActionsDomaine = exchange + '/' + eventNameToutesActionsDomaine
+            debug("Emettre sur %s", eventNameToutesActionsDomaine)
+            this.socketio.to(nomRoomToutesActionsDomaine).emit(eventNameToutesActionsDomaine, contenuEvenement)
+
+            // Room pour tous les domaines avec une action
+            const eventNameTousDomainesAction = [splitKey[0], '*', [...splitKey].pop()].join('.')
+            const roomTousDomainesAction = exchange + '/' + eventNameTousDomainesAction
+            debug("Emettre sur %s", eventNameTousDomainesAction)
+            this.socketio.to(roomTousDomainesAction).emit(eventNameTousDomainesAction, contenuEvenement)
+          }
 
         } else {
           debug("Dropped message exchange %s, routing %s", exchange, routingKey)
