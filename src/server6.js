@@ -518,7 +518,6 @@ function subscribe(socket, params, cb) {
 
     debugConnexions("Socket events apres subscribe: %O", Object.keys(socket._events))
 
-
     // Collapse les partitions : evenement.domaine.partition.action devient evenement.domaine.action
     let rkEvents = routingKeys
       .map(item=>item.split('.'))
@@ -556,7 +555,18 @@ function unsubscribe(socket, params, cb) {
       })
     })
     
-    if(cb) cb({ok: true, routingKeys, exchanges})
+    // Collapse les partitions : evenement.domaine.partition.action devient evenement.domaine.action
+    let rkEvents = routingKeys
+      .map(item=>item.split('.'))
+      .reduce((acc, rk)=>{
+        if(rk.length === 4) rk = [rk[0], rk[1], rk[3]]
+        acc[rk.join('.')] = true
+        return acc
+      }, {})
+    rkEvents = Object.keys(rkEvents)
+    debugConnexions("Sockets events pour client : %O", rkEvents)
+
+    if(cb) cb({ok: true, routingKeys: rkEvents, exchanges})
   } catch(err) {
     console.error('server6.unsubscribe error : %O', err)
     if(cb) cb({ok: false, err: ''+err})
