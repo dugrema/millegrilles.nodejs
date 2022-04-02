@@ -5,6 +5,9 @@ const { extraireInformationCertificat } = require('@dugrema/millegrilles.utiljs/
 // const debug = debugLib('millegrilles:common:dao:comptesUsagersDao')
 //const { extraireInformationCertificat } = forgecommon
 
+const DOMAINE_MAITRECOMPTES = 'CoreMaitreDesComptes',
+      L2Prive = '2.prive'
+
 class ComptesUsagers {
 
   constructor(amqDao) {
@@ -96,6 +99,18 @@ class ComptesUsagers {
     debug("Compte usager charge : %O", valeurs)
     return valeurs
   }
+
+  chargerCompteUsager = (socket, requete) => {
+    // Utilise la signature de l'usager pour charger son compte
+    if(!requete['en-tete']) return {ok: false, err: 'Signature de message "chargerCompteUsager" absente'}
+
+    const domaine = DOMAINE_MAITRECOMPTES
+    const action = 'chargerUsager'
+
+    // return this.amqDao.transmettreRequete(domaine, requete, {action, decoder: true, noformat: true})
+
+    return transmettreRequete(socket, requete, action, {domaine})
+  }  
 
   inscrireCompte = async (nomUsager, userId, fingerprintPk, securite, csr) => {
     const domaine = 'CoreMaitreDesComptes'
@@ -262,6 +277,32 @@ function injecter(amqDao) {
   }
 
   return {injecterComptesUsagers, extraireUsager, comptesUsagersDao: comptesUsagers}
+}
+
+async function transmettreRequete(socket, params, action, opts) {
+  opts = opts || {}
+  const domaine = opts.domaine || DOMAINE_MAITRECOMPTES
+  const exchange = opts.exchange || L2Prive
+  try {
+      verifierMessage(params, domaine, action)
+      return await socket.amqpdao.transmettreRequete(
+          domaine, 
+          params, 
+          {action, exchange, noformat: true, decoder: true}
+      )
+  } catch(err) {
+      console.error("mqdao.transmettreRequete ERROR : %O", err)
+      return {ok: false, err: ''+err}
+  }
+}
+
+/* Fonction de verification pour eviter abus de l'API */
+function verifierMessage(message, domaine, action) {
+  const entete = message['en-tete'] || {},
+        domaineRecu = entete.domaine,
+        actionRecue = entete.action
+  if(domaineRecu !== domaine) throw new Error(`Mismatch domaine (${domaineRecu} !== ${domaine})"`)
+  if(actionRecue !== action) throw new Error(`Mismatch action (${actionRecue} !== ${action})"`)
 }
 
 module.exports = injecter
