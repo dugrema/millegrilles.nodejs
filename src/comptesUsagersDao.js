@@ -211,11 +211,12 @@ class ComptesUsagers {
     }
   }
 
-  activerDelegationParCleMillegrille = async (userId, demandeSignee) => {
+  activerDelegationParCleMillegrille = async (_socket, params) => {
+    const {userId, confirmation} = params
     const domaine = 'CoreMaitreDesComptes'
     const action = 'ajouterDelegationSignee'
     const transaction = {
-      confirmation: demandeSignee,
+      confirmation,
       userId,  // Ajouter le userid, n'est pas present dans la demande signee initiale
     }
     debug("Transaction ajouterDelegationSignee %O", transaction)
