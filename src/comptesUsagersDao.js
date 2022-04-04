@@ -252,6 +252,13 @@ class ComptesUsagers {
     )
   }
 
+  getRecoveryCsr = (socket, requete) => {
+    // Utilise la signature de l'usager pour charger son compte
+    if(!requete['en-tete']) return {ok: false, err: 'Signature de message "getRecoveryCsr" absente'}
+    const domaine = DOMAINE_MAITRECOMPTES
+    const action = 'getCsrRecoveryParcode'
+    return transmettreRequete(socket, requete, action, {domaine})
+  }  
 }
 
 // Fonction qui injecte l'acces aux comptes usagers dans req
