@@ -240,6 +240,18 @@ class ComptesUsagers {
     return reponse
   }
 
+  ajouterCsrRecovery = (socket, commande) => {
+    const domaine = DOMAINE_MAITRECOMPTES,
+          action = 'ajouterCsrRecovery',
+          exchange = '2.prive'
+  
+    return socket.amqpdao.transmettreCommande(
+      domaine, 
+      commande, 
+      {domaine, action, exchange, decoder: true}
+    )
+  }
+
 }
 
 // Fonction qui injecte l'acces aux comptes usagers dans req
@@ -294,6 +306,24 @@ async function transmettreRequete(socket, params, action, opts) {
       console.error("mqdao.transmettreRequete ERROR : %O", err)
       return {ok: false, err: ''+err}
   }
+}
+
+async function transmettreCommande(socket, params, action, opts) {
+  opts = opts || {}
+  const domaine = opts.domaine || DOMAINE_MAITRECOMPTES
+  const exchange = opts.exchange || L2Prive
+  try {
+      verifierMessage(params, domaine, action)
+      return await socket.amqpdao.transmettreCommande(
+          domaine, 
+          params, 
+          {action, exchange, noformat: true, decoder: true}
+      )
+  } catch(err) {
+      console.error("mqdao.transmettreRequete ERROR : %O", err)
+      return {ok: false, err: ''+err}
+  }
+
 }
 
 /* Fonction de verification pour eviter abus de l'API */
