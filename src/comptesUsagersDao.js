@@ -23,14 +23,15 @@ class ComptesUsagers {
     }
   }
 
-  chargerCompte = async (nomUsager, fingerprintPk) => {
+  chargerCompte = async (nomUsager, fingerprintPublicNouveau, fingerprintPublicCourant) => {
     if( ! nomUsager ) throw new Error("Usager undefined")
 
     const domaine = 'CoreMaitreDesComptes'
     const action = 'chargerUsager'
 
     const requete = {nomUsager}
-    debug("Requete compte usager %s", nomUsager)
+    debug("Requete compte usager %s (fingerprintPublicNouveau : %s, fingerprintPublicCourant: %s)", 
+      nomUsager, fingerprintPublicNouveau, fingerprintPublicCourant)
 
     const promiseCompteUsager = this.amqDao.transmettreRequete(
       domaine, requete, {action, decoder: true, attacherCertificat: true})
@@ -38,6 +39,16 @@ class ComptesUsagers {
 
         if(compteUsager.nomUsager) {
           debug("Requete compte usager, recu %s : %s", nomUsager, compteUsager)
+
+          // if(fingerprintPublicCourant && compteUsager.activations_par_fingerprint_pk) {
+          //   // Verifier si l'usager peut utiliser un nouveau certificat pour bypasser
+          //   // l'authentification forte (e.g. account recovery)
+          //   const etatAssociation = compteUsager.activations_par_fingerprint_pk[fingerprintPublicCourant] || {}
+          //   if(etatAssociation.associe === false) {
+          //     compteUsager.bypassActif = true
+          //   }
+          // }
+
           return compteUsager
         } else {
           debug("Requete compte usager, compte %s inexistant", nomUsager)
@@ -46,28 +57,28 @@ class ComptesUsagers {
 
       })
 
-    var promiseFingerprintPk = null
-    if(fingerprintPk) {
+    var promiseFingerprintNouveau = null
+    if(fingerprintPublicNouveau) {
       const domaine  = 'CorePki'
       const action = 'certificatParPk'
-      const requete = {fingerprint_pk: fingerprintPk}
-      promiseFingerprintPk = this.amqDao.transmettreRequete(
+      const requete = {fingerprint_pk: fingerprintPublicNouveau}
+      promiseFingerprintNouveau = this.amqDao.transmettreRequete(
         domaine, requete, {action, decoder: true, splitDomaineAction: true})
         .then(resultat=>{
-          debug("Resultat requete fingerprintPk %s : %O", fingerprintPk, resultat)
+          debug("Resultat requete fingerprintPk %s : %O", fingerprintPublicNouveau, resultat)
           let certificat = resultat.certificat || resultat.chaine_pem
           if(certificat) return certificat
           else return false
         })
     }
 
-    const resultats = await Promise.all([promiseCompteUsager, promiseFingerprintPk])
+    const resultats = await Promise.all([promiseCompteUsager, promiseFingerprintNouveau])
 
     const valeurs = resultats[0]
     if(valeurs) {
       if(resultats[1]) {
         valeurs.certificat = resultats[1]
-      } else if(fingerprintPk) {
+      } else if(fingerprintPublicCourant) {
         // On n'a pas de certificat correspondant. On doit generer un challenge
         // cote serveur pour confirmer la demande de signature.
       }

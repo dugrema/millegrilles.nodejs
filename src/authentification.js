@@ -33,7 +33,8 @@ async function verifierUsager(socket, params) {
   const session = socket.handshake.session,
         hostnameRequest = socket.handshake.headers.host
   const nomUsager = params.nomUsager,
-        fingerprintPk = params.fingerprintPk
+        fingerprintPk = params.fingerprintPk,
+        fingerprintCourant = params.fingerprintCourant
 
   debug("Verification d'existence d'un usager : %s\nBody: %O", nomUsager, params)
 
@@ -86,10 +87,10 @@ async function verifierUsager(socket, params) {
     }
 
     const activations = compteUsager.activations_par_fingerprint_pk || {},
-          activation = activations[fingerprintPk]
+          activation = activations[fingerprintCourant]
     if(activation) {
       // Filtrer methodes d'activation
-      reponse.activation = {...activation, fingerprintPk}
+      reponse.activation = {...activation, fingerprint: fingerprintCourant}
     }
 
     return reponse
