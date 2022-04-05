@@ -1,6 +1,7 @@
 const debug = require('debug')('millegrilles:common:dao:comptesUsagersDao')
 
 const { extraireInformationCertificat } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
+const { verifierChallenge } = require('./webauthn')
 
 // const debug = debugLib('millegrilles:common:dao:comptesUsagersDao')
 //const { extraireInformationCertificat } = forgecommon
@@ -258,7 +259,37 @@ class ComptesUsagers {
     const domaine = DOMAINE_MAITRECOMPTES
     const action = 'getCsrRecoveryParcode'
     return transmettreRequete(socket, requete, action, {domaine})
-  }  
+  }
+
+  signerRecoveryCsr = async (socket, commande) => {
+    const session = socket.handshake.session,
+          nomUsager = session.nomUsager
+
+          // Utilise la signature de l'usager pour charger son compte
+    if(!commande['en-tete']) return {ok: false, err: 'Signature de message "signerRecoveryCsr" absente'}
+    const domaine = DOMAINE_MAITRECOMPTES
+    const action = 'signerCompteUsager'
+
+    // Charger usager
+    const webauthnChallenge = socket.webauthnChallenge,
+          clientAssertionResponse = commande.clientAssertionResponse,
+          demandeCertificat = commande.demandeCertificat
+    debug("!!! nomUsager : %s, webauthnChallenge : %O\nCommande: %O", nomUsager, webauthnChallenge, commande)
+
+    // const compteUsager = await this.chargerCompteUsager(socket, {nomUsager})
+    const compteUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager)
+    debug("Compte usager charge : %O", compteUsager)
+
+    // Verification du challenge
+    try {
+      await verifierChallenge(webauthnChallenge, compteUsager, clientAssertionResponse, {demandeCertificat})
+      debug("Transmettre commande recovery CSR\n%O", commande)
+      return transmettreCommande(socket, commande, action, {domaine})
+    } catch(err) {
+      debug("signerRecoveryCsr Erreur verification: %O", err)
+      return {ok: false, 'err': 'Erreur verification challenge webauthn'}
+    }
+  }
 }
 
 // Fonction qui injecte l'acces aux comptes usagers dans req
@@ -327,7 +358,7 @@ async function transmettreCommande(socket, params, action, opts) {
           {action, exchange, noformat: true, decoder: true}
       )
   } catch(err) {
-      console.error("mqdao.transmettreRequete ERROR : %O", err)
+      console.error("mqdao.transmettreCommande ERROR : %O", err)
       return {ok: false, err: ''+err}
   }
 

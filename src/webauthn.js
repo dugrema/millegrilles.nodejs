@@ -127,6 +127,10 @@ async function verifierChallenge(challengeInfo, compteUsager, clientAssertionRes
     challengeInfo, compteUsager, clientAssertionResponse, opts
   )
 
+  // Faire copie de la response
+  clientAssertionResponse = {...clientAssertionResponse}
+  clientAssertionResponse.response = {...clientAssertionResponse.response}
+
   // Faire correspondre credId
   const credId64 = clientAssertionResponse.id64
   const credInfo = compteUsager.webauthn.filter(item=>{
@@ -193,7 +197,14 @@ function decodeToArraybuffer(dict, field, decoder) {
   decoder = decoder || base64
   let value = dict[field]
   if(value) {
-    dict[field] = decoder.decode(value).buffer
+    if(typeof(value) === 'string') {
+      try {
+        dict[field] = decoder.decode(value).buffer
+      } catch(err) {
+        console.warn("Erreur decodage %s : %O", field, err)
+        throw err
+      }
+    }
   } else {
     delete dict[field]
   }
