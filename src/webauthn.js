@@ -1,6 +1,8 @@
 const debug = require('debug')('millegrilles:webauthn')
 
 const multibase = require('multibase')
+const { base64 } = require('multiformats/bases/base64')
+const { base58btc } = require('multiformats/bases/base58')
 const base64url = require('base64url')
 const { Fido2Lib } = require('fido2-lib')
 
@@ -131,27 +133,20 @@ async function verifierChallenge(challengeInfo, compteUsager, clientAssertionRes
     return item.credId === credId64
   })[0]
 
-  const userId = multibase.decode(compteUsager.userId)
+  const userId = base58btc.decode(compteUsager.userId)
   const prevCounter = credInfo.counter
 
   debug("Cred info match: %O", credInfo)
-  clientAssertionResponse.id = new Uint8Array(clientAssertionResponse.id).buffer
+  clientAssertionResponse.id = base64.decode(clientAssertionResponse.id64).buffer
 
   const clientResponse = clientAssertionResponse.response
 
-  // Debug, encoder response en multibase
-  const authenticatorDataMB = String.fromCharCode.apply(null, multibase.encode('base64', clientResponse.authenticatorData))
-  const clientDataJSONMB = String.fromCharCode.apply(null, multibase.encode('base64', clientResponse.clientDataJSON))
-  const signatureMB = String.fromCharCode.apply(null, multibase.encode('base64', clientResponse.signature))
-  debug('"authenticatorData": "%s",\n"clientDataJSON": "%s",\n"signature": "%s"', authenticatorDataMB, clientDataJSONMB, signatureMB)
-
-  clientResponse.authenticatorData = new Uint8Array(clientResponse.authenticatorData).buffer,
-  clientResponse.clientDataJSON = new Uint8Array(clientResponse.clientDataJSON).buffer,
-  clientResponse.signature = new Uint8Array(clientResponse.signature).buffer,
-  clientResponse.userHandle = new Uint8Array(clientResponse.userHandle).buffer
+  // Decoder valeurs base64
+  Object.keys(clientResponse).forEach(item=>decodeToArraybuffer(clientResponse, item))
+  debug('authenticator client response : %O', clientResponse)
 
   const publicKey = credInfo.publicKeyPem
-  const challengeBuffer = multibase.decode(authChallenge)
+  const challengeBuffer = base64.decode(authChallenge)
 
   debug("Public Key : %O", publicKey)
 
@@ -192,6 +187,16 @@ async function verifierChallenge(challengeInfo, compteUsager, clientAssertionRes
   } catch(err) {console.warn("webauthn.verifierChallenge Erreur verif flags : %O", err)}
 
   return {authentifie: true, counter, userVerification, userPresence, assertionExpectations}
+}
+
+function decodeToArraybuffer(dict, field, decoder) {
+  decoder = decoder || base64
+  let value = dict[field]
+  if(value) {
+    dict[field] = decoder.decode(value).buffer
+  } else {
+    delete dict[field]
+  }
 }
 
 async function genererRegistrationOptions(userId, nomUsager, opts) {
