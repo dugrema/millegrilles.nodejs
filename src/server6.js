@@ -497,9 +497,9 @@ function subscribe(socket, params, cb) {
   try {
     debugConnexions("Subscribe : %O", params)
 
+    const { userId, roomParam, mapper} = params
     const routingKeys = params.routingKeys || []
     const exchanges = params.exchanges || []
-    const userId = params.userId
     debugConnexions("Subscribe exchanges %O, %O, userId=%O", exchanges, routingKeys, userId)
 
     if(routingKeys.length === 0 || exchanges.length === 0) {
@@ -513,7 +513,7 @@ function subscribe(socket, params, cb) {
           reply_q = amqpdao.reply_q
 
     exchanges.forEach(exchange=>{
-      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, exchange, channel, reply_q, {userId})
+      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, exchange, channel, reply_q, {userId, roomParam, mapper})
     })
 
     debugConnexions("Socket events apres subscribe: %O", Object.keys(socket._events))
@@ -529,7 +529,7 @@ function subscribe(socket, params, cb) {
     rkEvents = Object.keys(rkEvents)
     debugConnexions("Sockets events pour client : %O", rkEvents)
 
-    if(cb) cb({ok: true, routingKeys: rkEvents, exchanges})
+    if(cb) cb({ok: true, routingKeys: rkEvents, exchanges, roomParam})
   } catch(err) {
     console.error('server6.subscribe error : %O', err)
     if(cb) cb({ok: false, err: ''+err})
@@ -539,17 +539,19 @@ function subscribe(socket, params, cb) {
 function unsubscribe(socket, params, cb) {
   try {
     const routingKeys = params.routingKeys || [],
-          exchanges = params.exchanges || []
+          exchanges = params.exchanges || [],
+          roomParam = params.roomParam
 
     if(routingKeys.length === 0 || exchanges.length === 0) {
-      debug("unsubscribe ERROR routingKeys ou exchanges vide : %O / %O", routingKeys, exchanges)
+      debug("unsubscribe ERROR routingKeys ou exchanges vide : %O / %O / %O", routingKeys, exchanges, roomParam)
       if(cb) cb({ok: false, err: "Routings keys/exchanges vide"})
       return
     }
 
     exchanges.forEach(ex=>{
       routingKeys.forEach(rk=>{
-        const eventName = `${ex}/${rk}`
+        let eventName = `${ex}/${rk}`
+        if(roomParam) eventName += '/' + roomParam
         debug('Unsubscribe socket %s de %s', socket.id, eventName)
         socket.leave(eventName)
       })

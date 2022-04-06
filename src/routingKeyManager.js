@@ -6,6 +6,24 @@ const debugMessages = debugLib('millegrilles:routingKeyManager:messages')
 const L1PUBLIC = '1.public'
 const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
 
+// Mappers custom
+// Cle = regex de routing key pour match, e.g. /^evenement\.CorePki\./, Value = {exchanges [], routingKeyTest regexp, mapRoom function()}
+const customRoomMappers = {
+
+  // Mapper pour fingerprintPk de nouveau certificat
+  // '/^commande\.CoreMaitreDesComptes\.activationFingerprintPk$/': {
+  //   exchanges: ['2.prive'],
+  //   routingKeyTest: /^commande\.CoreMaitreDesComptes\.activationFingerprintPk$/,
+  //   mapRoom: (message, rk, exchange) => {
+  //     const fingerprintPk = message.fingerprint_pk
+  //     if(fingerprintPk) {
+  //       return `2.prive/evenement.CoreMaitreDesComptes.activationFingerprintPk/${fingerprintPk}`
+  //     }
+  //   }
+  // }
+
+}
+
 class RoutingKeyManager {
 
   constructor(mq, opts) {
@@ -40,7 +58,9 @@ class RoutingKeyManager {
     let callback = this.registeredRoutingKeyCallbacks[routingKey];
     const correlationId = properties.correlationId
     const json_message = JSON.parse(messageContent);
-    
+
+    debug("RoutingKeyManager Message recu rk: %s, correlationId: %s, callback present?%s", routingKey, correlationId, callback?'true':'false')
+
     // Champs speciaux utilises pour le routage
     const userId = json_message.user_id || json_message.userId
 
@@ -93,6 +113,18 @@ class RoutingKeyManager {
             // Routage avec userId
             roomsExact.push(userId + '/' + [...splitKey].join('.'))
           }
+
+          // Ajouter les mappers custom
+          Object.values(customRoomMappers).map(mapper=>{
+            if( mapper.exchanges && ! mapper.exchanges.includes(exchange) ) return
+            if( mapper.routingKeyTest.test(routingKey) ) {
+              const roomName = mapper.mapRoom(json_message, routingKey, correlationId, exchange)
+              if(roomName) {
+                debug("Emettre mesasge sur room custom %s", roomName)
+                roomsExact.push(roomName)
+              }
+            }
+          })
 
           // Combiner toutes les rooms en une seule liste
           var room = this.socketio
@@ -207,9 +239,17 @@ class RoutingKeyManager {
 
   addRoutingKeysForSocket(socket, routingKeys, niveauSecurite, channel, reply_q, opts) {
     opts = opts || {}
+    const { userId, roomParam, mapper } = opts
     const socketId = socket.id
     const exchange = niveauSecurite || this.exchange
-    const userId = opts.userId
+
+    if(mapper) {
+      const cleMapper = '' + mapper.routingKeyTest
+      if(!customRoomMappers[cleMapper]) {
+        debug("Ajouter mapper pour evenements %s", cleMapper)
+        customRoomMappers[cleMapper] = mapper
+      }
+    }
 
     for(var routingKey_idx in routingKeys) {
       let routingKeyName = routingKeys[routingKey_idx];
@@ -223,6 +263,8 @@ class RoutingKeyManager {
       if(userId) {
         // Enregistrement pour un user en particulier
         roomName = `${userId}/${routingKeyName}`
+      } else if(roomParam) {
+        roomName = `${exchange}/${routingKeyName}/${roomParam}`
       } else {
         // Enregistrement sur l'exchange (global, voit passer tous les messages correspondants)
         roomName = `${exchange}/${routingKeyName}`
@@ -249,18 +291,46 @@ class RoutingKeyManager {
     if(this.socketio) {
       const rooms = this.socketio.sockets.adapter.rooms
 
+      const roomsParamsParBinding = {}
+
       // Faire la liste des routing keys d'evenements
       for(let roomName in this.roomsEvenements) {
         const roomConfig = this.roomsEvenements[roomName]
         const routingKeyName = roomConfig.routingKeyName
         const socketRoom = rooms.get(roomConfig.roomName)
-        if(!socketRoom) {
+        const replyQ = roomConfig.reply_q.queue
+        const exchange = roomConfig.exchange
+
+        const roomNameSplit = roomName.split('/')
+        if(roomNameSplit.length === 3) {
+          let roomParam = null
+          let rk = null
+          let exchange = null
+          roomParam = roomNameSplit.pop(); rk = roomNameSplit.pop(); exchange = roomNameSplit.pop()
+          let roomBinding = `${exchange}/${rk}`
+          if(roomsParamsParBinding[roomBinding] === undefined) {
+            roomsParamsParBinding[roomBinding] = {replyQ, exchange, roomName, routingKeyName, compteur: 0}
+          }
+          if(socketRoom) roomsParamsParBinding[roomBinding].compteur++
+        } else if(!socketRoom) {
           debug("Nettoyage room %s, retrait routing key %s", roomConfig.roomName, routingKeyName)
-          this.mq.channel.unbindQueue(roomConfig.reply_q.queue, roomConfig.exchange, routingKeyName);
+          this.mq.channel.unbindQueue(replyQ, exchange, routingKeyName);
         } else {
           // debug("Routing key %s, room %s, %d membres", routingKeyName, roomConfig.roomName, socketRoom.size)
         }
       }
+
+      debug("Rooms par binding avec params : %O", roomsParamsParBinding)
+      Object.keys(roomsParamsParBinding).map(binding=>{
+        const info = roomsParamsParBinding[binding]
+        if(info.compteur === 0) {
+          debug("Retrait binding %s", binding)
+          this.mq.channel.unbindQueue(info.replyQ, info.exchange, info.routingKeyName);
+
+          debug("Supprimer la room %s pour eviter nettoyages subsequents", info.roomName)
+          delete this.roomsEvenements[info.roomName]
+        }
+      })
 
       // const rooms = this.socketio.sockets.rooms
       // debug("SocketIO rooms: %s", rooms)
