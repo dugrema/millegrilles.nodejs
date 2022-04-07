@@ -155,11 +155,51 @@ class MilleGrillesPKI {
   async verifierMessage(message, opts) {
     opts = opts || {}
     const optsMessages = {...opts}  // Copie
-    // Trouver le certificat correspondant au message
+
+    const chaineForge = await this.getCertificatMessage(message, opts)
+    // // Trouver le certificat correspondant au message
+    // const fingerprint = message['en-tete'].fingerprint_certificat
+    // const chaine = message['_certificat'],
+    //       millegrille = message['_millegrille']
+
+    // if(chaine) {
+    //   // On a un certificat inline - on tente quand meme d'utiliser le cache
+    //   optsMessages.nowait = true
+    // }
+    // var chaineForge = null
+    // var _err = null
+    // try {
+    //   chaineForge = await this.getCertificate(fingerprint, optsMessages)
+    // } catch(err) {
+    //   _err = err
+    // }
+
+    // if(!chaineForge) {
+    //   if(!chaine) throw _err
+    //   debug("Certificat non trouve localement, mais il est inline")
+    //   await this.sauvegarderMessageCertificat({chaine_pem: chaine, millegrille}, fingerprint, opts)
+    //   const certCache = this.cacheCertsParFingerprint[fingerprint]
+    //   // let chaineForge = null
+    //   if(certCache) {
+    //     chaineForge = certCache.chaineForge
+    //     certCache.ts = new Date().getTime()  // Touch
+    //   }
+    //   debug("Certificat inline sauvegarde sous %s\n%O", fingerprint, chaineForge)
+    // }
+
+    // Retourner promise
+    const certificat = chaineForge[0]
+
+    return verifierMessage(message, certificat)
+  }
+
+  async getCertificatMessage(message, opts) {
+    opts = opts || {}
     const fingerprint = message['en-tete'].fingerprint_certificat
     const chaine = message['_certificat'],
           millegrille = message['_millegrille']
 
+    const optsMessages = {...opts}
     if(chaine) {
       // On a un certificat inline - on tente quand meme d'utiliser le cache
       optsMessages.nowait = true
@@ -185,10 +225,7 @@ class MilleGrillesPKI {
       debug("Certificat inline sauvegarde sous %s\n%O", fingerprint, chaineForge)
     }
 
-    // Retourner promise
-    const certificat = chaineForge[0]
-
-    return verifierMessage(message, certificat)
+    return chaineForge
   }
 
   async _initialiserStoreCa(certPem) {

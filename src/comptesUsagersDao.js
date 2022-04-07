@@ -1,6 +1,6 @@
 const debug = require('debug')('millegrilles:common:dao:comptesUsagersDao')
 
-const { extraireInformationCertificat } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
+const { extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
 const { verifierChallenge } = require('./webauthn')
 
 // const debug = debugLib('millegrilles:common:dao:comptesUsagersDao')
@@ -218,25 +218,25 @@ class ComptesUsagers {
     }
   }
 
-  emettreCertificatNavigateur = async (fullchainPems) => {
-    // Verifier les certificats et la signature du message
-    // Permet de confirmer que le client est bien en possession d'une cle valide pour l'IDMG
-    // const { cert: certNavigateur, idmg } = validerChaineCertificats(fullchain)
-    const infoCertificat = extraireInformationCertificat(fullchainPems[0])
-    debug("Information certificat navigateur : %O", infoCertificat)
-    let messageInfoCertificat = {
-        fingerprint: infoCertificat.fingerprintBase64,
-        fingerprint_sha256_b64: infoCertificat.fingerprintSha256Base64,
-        chaine_pem: fullchainPems,
-    }
-    const domaineAction = 'evenement.certificat.infoCertificat'
-    try {
-      debug("Emettre certificat navigateur fingerprint: %s", infoCertificat.fingerprintBase64)
-      await this.amqDao.emettreEvenement(messageInfoCertificat, domaineAction)
-    } catch(err) {
-      debug("Erreur emission certificat\n%O", err)
-    }
-  }
+  // emettreCertificatNavigateur = async (fullchainPems) => {
+  //   // Verifier les certificats et la signature du message
+  //   // Permet de confirmer que le client est bien en possession d'une cle valide pour l'IDMG
+  //   // const { cert: certNavigateur, idmg } = validerChaineCertificats(fullchain)
+  //   const infoCertificat = extraireInformationCertificat(fullchainPems[0])
+  //   debug("Information certificat navigateur : %O", infoCertificat)
+  //   let messageInfoCertificat = {
+  //       fingerprint: infoCertificat.fingerprintBase64,
+  //       fingerprint_sha256_b64: infoCertificat.fingerprintSha256Base64,
+  //       chaine_pem: fullchainPems,
+  //   }
+  //   const domaineAction = 'evenement.certificat.infoCertificat'
+  //   try {
+  //     debug("Emettre certificat navigateur fingerprint: %s", infoCertificat.fingerprintBase64)
+  //     await this.amqDao.emettreEvenement(messageInfoCertificat, domaineAction)
+  //   } catch(err) {
+  //     debug("Erreur emission certificat\n%O", err)
+  //   }
+  // }
 
   activerDelegationParCleMillegrille = async (_socket, params) => {
     const {userId, confirmation} = params
@@ -284,22 +284,43 @@ class ComptesUsagers {
     // Charger usager
     const webauthnChallenge = socket.webauthnChallenge,
           clientAssertionResponse = commande.clientAssertionResponse,
-          demandeCertificat = commande.demandeCertificat
+          demandeCertificat = commande.demandeCertificat,
+          userId = commande.userId
     debug("!!! nomUsager : %s, webauthnChallenge : %O\nCommande: %O", nomUsager, webauthnChallenge, commande)
 
-    // const compteUsager = await this.chargerCompteUsager(socket, {nomUsager})
-    const compteUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager)
-    debug("Compte usager charge : %O", compteUsager)
+    if(webauthnChallenge) {
+      // Signature webauthn par l'usager du compte. Verifier avant de passer sur MQ.
 
-    // Verification du challenge
-    try {
-      await verifierChallenge(webauthnChallenge, compteUsager, clientAssertionResponse, {demandeCertificat})
-      debug("Transmettre commande recovery CSR\n%O", commande)
+      const compteUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager)
+      debug("Compte usager charge : %O", compteUsager)
+  
+      // Verification du challenge
+      try {
+        await verifierChallenge(webauthnChallenge, compteUsager, clientAssertionResponse, {demandeCertificat})
+        debug("Transmettre commande recovery CSR\n%O", commande)
+        return transmettreCommande(socket, commande, action, {domaine})
+      } catch(err) {
+        debug("signerRecoveryCsr Erreur verification: %O", err)
+        return {ok: false, 'err': 'Erreur verification challenge webauthn'}
+      }
+
+    } else if(userId) {
+      // On n'a pas de signature webauthn. Verifier la signature de la requete, doit etre une delegation globale
+      console.debug("!!! Get certificat message")
+      const chaineForge = await socket.amqpdao.pki.getCertificatMessage(commande)
+      console.debug("!!! Chaine recue : %O", chaineForge)
+      const certificat = chaineForge[0]
+      const infoCertificat = extraireExtensionsMillegrille(certificat)
+      if(infoCertificat.delegationGlobale !== 'proprietaire') {
+        return {ok: false, err: 'Acces refuse, doit etre delegation globale'}
+      }
+
+      // Ok, on transmet la commande
       return transmettreCommande(socket, commande, action, {domaine})
-    } catch(err) {
-      debug("signerRecoveryCsr Erreur verification: %O", err)
-      return {ok: false, 'err': 'Erreur verification challenge webauthn'}
+    } else {
+      return {ok: false, err: 'Acces refuse, commande incomplete ou non autorisee'}
     }
+
   }
 }
 
