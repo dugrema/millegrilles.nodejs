@@ -476,13 +476,17 @@ function downgradePrive(socket, params, cb) {
 
 function enregistrerListener(socket, collectionListener) {
   debugConnexions("server6.enregistrerListeners %O", collectionListener.map(item=>item.eventName))
-  for(let idx in collectionListener) {
-    const listener = collectionListener[idx]
-    debugConnexions("Ajout listener %s", listener.eventName)
-    if(listener.eventName) {
-      socket.on(listener.eventName, listener.callback)
+
+  const eventsExistants = Object.keys(socket._events)
+  collectionListener.forEach(listener=>{
+    const {eventName, callback} = listener
+    if(eventsExistants.includes(eventName)) {
+      console.warn("enregistrerListener Tentative d'enregistrement d'evenement en double (%s), on skip", eventName)
+    } else if(eventName) {
+      debugConnexions("Ajout listener %s", listener.eventName)
+      socket.on(eventName, callback)
     }
-  }
+  })
 }
 
 function retirerListener(socket, collectionListener) {
