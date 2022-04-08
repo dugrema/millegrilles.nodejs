@@ -1096,7 +1096,7 @@ class MilleGrillesAmqpDAO {
         )
 
         if(this.pendingResponses[correlationId]) {
-          throw new Error(`_transmettre double-publish sur correlationId ${correlationId}, abort`)
+          reject(new Error(`_transmettre double-publish sur correlationId ${correlationId}, abort`))
         }
         this.pendingResponses[correlationId] = {callback: fonction_callback, creationDate: new Date()}
       }
