@@ -261,7 +261,7 @@ function configurerSession(hostname, redisClient, opts) {
     saveUninitialized: true,  // Requis pour s'assurer de creer le cookie avant ouverture socket.io (call /verifier)
   }
 
-  debug("Setup session hostname %s avec path : %s\n%O", hostname, pathApp, sessionConfigDomain)
+  debug("Setup session hostname %s avec path : %s", hostname, pathApp)
 
   const sessionHandlerDomain = session(sessionConfigDomain),
         sessionHandlerNoDomain = session(sessionConfigNoDomain)

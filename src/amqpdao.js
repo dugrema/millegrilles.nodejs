@@ -17,8 +17,9 @@ const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
 const EXPIRATION_MESSAGE_DEFAUT = 15 * 60000  // 15 minutes en millisec
 const EXPIRATION_EMIT_MESSAGE_DEFAUT = 15000  // 15 secondes
 
-const debug = debugLib('millegrilles:common:amqpdao')
-const debugMessages = debugLib('millegrilles:common:amqpdao:messages')
+const debug = debugLib('amqpdao')
+const debugMessages = debugLib('amqpdao:messages')
+const debugCorrelation = debugLib('amqpdao:correlation')
 
 class MilleGrillesAmqpDAO {
 
@@ -274,9 +275,9 @@ class MilleGrillesAmqpDAO {
         // Conserver callback
         pendingReponsesUpdate[correlationId] = callbackInfo
       } else {
-        debug("entretien: delete callback correlationId:%s", correlationId)
+        debugCorrelation("entretien: delete callback correlationId:%s", correlationId)
       }
-      debug("Attente reponse %s", correlationId)
+      debugCorrelation("Attente reponse %s", correlationId)
     }
     this.pendingResponses = pendingReponsesUpdate
   }
@@ -465,6 +466,10 @@ class MilleGrillesAmqpDAO {
 
     debugMessages("Message recu sur Q principale :\n  routing keys : %O\n  exchange : %s\n  correlation id : %s\n%O",
       routingKey, exchange, correlationId, messageDict)
+    if(correlationId) {
+      debugMessages("Message recu sur Q principale :\n  routing keys : %O\n  exchange : %s\n  correlation id : %s\n%O",
+        routingKey, exchange, correlationId, messageDict)
+    }
 
     if( routingKey && routingKey === MG_ROUTING_EMETTRE_CERTIFICAT ) {
       // Sauvegarder le certificat localement pour usage futur
@@ -512,10 +517,12 @@ class MilleGrillesAmqpDAO {
 
       if( ! exchange && correlationId ) {  // Exclure message sur exchange, uniquement utiliser direct Q ('')
         debug("Reponse message direct, correlationId : %s", correlationId)
+        debugCorrelation("Reponse message direct, correlationId : %s", correlationId)
 
         callbackInfo = this.pendingResponses[correlationId]
         if(callbackInfo) {
           if( ! callbackInfo.nodelete ) {
+            debugCorrelation("traiterMessageValide delete pendingResponses correlationId : %s", correlationId)
             delete this.pendingResponses[correlationId]
           }
           debug("traiterMessageValide: executer callback")
@@ -552,6 +559,8 @@ class MilleGrillesAmqpDAO {
           routingKey = msg.fields.routingKey,
           exchange = msg.fields.routingKey,
           correlationId = msg.fields.correlationId
+
+    debugCorrelation("traiterMessageInvalide correlationId %s", correlationId)
 
     if(err.inconnu) {
       // Message certificat inconnu, on va verifier si c'est une reponse de
@@ -714,6 +723,7 @@ class MilleGrillesAmqpDAO {
 
     // Faire la publication
     return new Promise((resolve, reject)=>{
+      debugCorrelation("transmettreReponse Repondre a correlationId %s", correlationId)
       this.channel.publish(
         '',
         replyTo,
@@ -778,12 +788,14 @@ class MilleGrillesAmqpDAO {
     // console.log("Message: routing=" + routingKey + " message=" + jsonMessage);
     try {
       // console.log("Message a transmettre: " + routingKey + " = " + jsonMessage);
+      const correlationId = message['correlation']
+      debugCorrelation("_transmettreTransaction correlationId %s", correlationId)
       this.channel.publish(
         this.exchange,
         routingKey,
          new Buffer(jsonMessage),
          {
-           correlationId: message['correlation'],
+           correlationId,
            replyTo: this.reply_q.queue,
          },
          function(err, ok) {
@@ -809,7 +821,7 @@ class MilleGrillesAmqpDAO {
     let action = opts.action || entete_in.action
     if(partition) routingKey = routingKey + '.' + partition
     if(action) routingKey = routingKey + '.' + action
-    debug("!!! Transmettre requete, routing : %s (opts: %O)", routingKey, opts)
+    debug("transmettreRequete Routing : %s (opts: %O)", routingKey, opts)
 
     if( ! opts.noformat ) {
       // infoTransaction = this._formatterInfoTransaction(routingKey);
@@ -844,6 +856,7 @@ class MilleGrillesAmqpDAO {
 
     if(opts.decoder) {
       debug("Message recu, decoder")
+      if(correlationId) debugCorrelation("transmettreRequete Recu reponse correlationId %s", correlationId)
 
       if(!msg.content) {
         // Le message a deja ete decode
@@ -976,7 +989,7 @@ class MilleGrillesAmqpDAO {
       const properties = {
         replyTo: this.reply_q.queue,
         correlationId,
-      };
+      }
 
       // On a un correlationId, generer promise et callback
       const messagesRecus = []
@@ -984,6 +997,7 @@ class MilleGrillesAmqpDAO {
         debug("Transmission resultats multi-domaines:\n%O", messagesRecus)
         resolve({resultats: messagesRecus})
       }
+
       fonction_callback = function(msg, err) {
         if(msg && !err) {
           debug("Message multi-domaine recu\n%O", msg)
@@ -998,7 +1012,8 @@ class MilleGrillesAmqpDAO {
         } else {
           reject(err);
         }
-      };
+      }
+
       this.pendingResponses[correlationId] = {
         callback: fonction_callback,
         nodelete: true,
@@ -1019,7 +1034,7 @@ class MilleGrillesAmqpDAO {
           // delete pendingResponses[correlationId];
           reject(err);
         }
-      );
+      )
 
     })
     .finally(()=>{
@@ -1038,9 +1053,11 @@ class MilleGrillesAmqpDAO {
     // Setup variables pour timeout, callback
     let timeout, fonction_callback;
 
+    let infoErreur = null
+
     let promise = new Promise((resolve, reject) => {
 
-      var processed = false;
+      var processed = false
 
       // Exporter la fonction de callback dans l'objet RabbitMQ.
       // Permet de faire la correlation lorsqu'on recoit la reponse.
@@ -1059,17 +1076,37 @@ class MilleGrillesAmqpDAO {
         // On a un correlationId, generer promise et callback
         fonction_callback = function(msg, err) {
           if(msg && !err) {
-            resolve(msg);
+            debugCorrelation("_transmettre Recu reponse %s", correlationId)
+            resolve(msg)
           } else {
-            reject({err, msg});
+            debugCorrelation("_transmettre Rejeter %s", correlationId)
+            reject({err, msg})
           }
-        };
+        }
+
+        infoErreur = {ok: false, 'err': 'mq.timeout', code: 50, correlationId, routingKey, message: jsonMessage}
+
+        // Creer une erreur pour conserver la stack d'appel.
+        timeout = setTimeout(
+          () => {
+            console.error("AMQPDAO ERROR timeout sur correlationId:%s, stack appel : %O", correlationId, infoErreur.stack)
+            fonction_callback(null, infoErreur)
+          },
+          EXPIRATION_EMIT_MESSAGE_DEFAUT
+        )
+
+        if(this.pendingResponses[correlationId]) {
+          throw new Error(`_transmettre double-publish sur correlationId ${correlationId}, abort`)
+        }
         this.pendingResponses[correlationId] = {callback: fonction_callback, creationDate: new Date()}
       }
 
       const exchange = opts.exchange || this.exchange
 
-      // console.debug("Publish exchange: %s, routingKey: %s, message: %s", exchange, routingKey, jsonMessage)
+      debug("Publish exchange: %s, routingKey: %s, message: %s", exchange, routingKey, jsonMessage)
+      if(correlationId) {
+        debugCorrelation("Publish exchange: %s, routingKey: %s, correlationId: %s", exchange, routingKey, correlationId)
+      }
 
       // Faire la publication
       this.channel.publish(
@@ -1079,37 +1116,29 @@ class MilleGrillesAmqpDAO {
         properties,
         function(err, ok) {
           if(err) {
-            console.error("AMQPDAO ERROR : Erreur MQ Callback : %O", err);
+            console.error("AMQPDAO ERROR : Erreur MQ Callback correlationId %s : %O", correlationId, err);
             delete this.pendingResponses[correlationId];
-            reject();
+            reject()
           }
         }
       );
 
-      if(!correlationId) {
-        resolve();
+      if(!correlationId) resolve()
+      else {
+        debug("Correlation ids en attente : %O", Object.keys(this.pendingResponses))
       }
 
     })
     .finally(()=>{
-      delete this.pendingResponses[correlationId];
-      clearTimeout(timeout);
-    });
+      debugCorrelation("_transmettre finally : cleanup correlationId %s", correlationId)
+      delete this.pendingResponses[correlationId]
+      clearTimeout(timeout)
+    })
 
-    if(correlationId) {
-      // Lancer un timer pour permettre d'eviter qu'une requete ne soit
-      // jamais nettoyee ou repondue.
-
+    if(infoErreur) {
       // Creer une erreur pour conserver la stack d'appel.
-      const erreurPotentielle = new Error("Stack")
-
-      timeout = setTimeout(
-        () => {
-          console.error("AMQPDAO ERROR timeout sur correlationId:%s, stack appel : %O", correlationId, erreurPotentielle)
-          fonction_callback(null, {ok: false, 'err': 'mq.timeout', code: 50, correlationId, routingKey, message: jsonMessage, 'stack': erreurPotentielle.stack})
-        },
-        EXPIRATION_EMIT_MESSAGE_DEFAUT
-      );
+      // Faire a la fin, operation couteuse
+      infoErreur.stack = new Error("Stack").stack
     }
 
     return promise;
