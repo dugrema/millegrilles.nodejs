@@ -289,7 +289,7 @@ class ComptesUsagers {
       // Signature webauthn par l'usager du compte. Verifier avant de passer sur MQ.
 
       const compteUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager)
-      debug("Compte usager charge : %O", compteUsager)
+      debug("Compte usager charge : %O\nChallenge session : %O\nVerifier %O", compteUsager, webauthnChallenge, clientAssertionResponse)
   
       // Verification du challenge
       try {
