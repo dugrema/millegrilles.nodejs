@@ -119,8 +119,6 @@ class ComptesUsagers {
     const domaine = DOMAINE_MAITRECOMPTES
     const action = 'chargerUsager'
 
-    // return this.amqDao.transmettreRequete(domaine, requete, {action, decoder: true, noformat: true})
-
     return transmettreRequete(socket, requete, action, {domaine})
   }  
 
@@ -286,7 +284,6 @@ class ComptesUsagers {
           clientAssertionResponse = commande.clientAssertionResponse,
           demandeCertificat = commande.demandeCertificat,
           userId = commande.userId
-    debug("!!! nomUsager : %s, webauthnChallenge : %O\nCommande: %O", nomUsager, webauthnChallenge, commande)
 
     if(webauthnChallenge) {
       // Signature webauthn par l'usager du compte. Verifier avant de passer sur MQ.
@@ -306,9 +303,7 @@ class ComptesUsagers {
 
     } else if(userId) {
       // On n'a pas de signature webauthn. Verifier la signature de la requete, doit etre une delegation globale
-      console.debug("!!! Get certificat message")
       const chaineForge = await socket.amqpdao.pki.getCertificatMessage(commande)
-      console.debug("!!! Chaine recue : %O", chaineForge)
       const certificat = chaineForge[0]
       const infoCertificat = extraireExtensionsMillegrille(certificat)
       if(infoCertificat.delegationGlobale !== 'proprietaire') {
