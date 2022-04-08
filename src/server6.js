@@ -445,7 +445,7 @@ function activerModeProtege(socket, listenersProteges) {
   const session = socket.handshake.session
 
   enregistrerListener(socket, listenersProteges)
-  debugConnexions("Activation mode protege pour socketId %s\n%O", socket.id, Object.values(socket._events))
+  debugConnexions("Activation mode protege pour socketId %s", socket.id)
 
   socket.modeProtege = true
   socket.emit('modeProtege', {'etat': true})
@@ -475,7 +475,7 @@ function downgradePrive(socket, params, cb) {
 }
 
 function enregistrerListener(socket, collectionListener) {
-  debugConnexions("server6.enregistrerListener %O", collectionListener)
+  debugConnexions("server6.enregistrerListeners %O", collectionListener.map(item=>item.eventName))
   for(let idx in collectionListener) {
     const listener = collectionListener[idx]
     debugConnexions("Ajout listener %s", listener.eventName)
