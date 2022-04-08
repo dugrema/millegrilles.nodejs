@@ -14,7 +14,8 @@ const ROUTING_CERTIFICAT = 'requete.certificat'
 const MG_ROUTING_EMETTRE_CERTIFICAT = 'evenement.certificat.infoCertificat'
 const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
 // const routingKeyNouvelleTransaction = 'transaction.nouvelle'
-const EXPIRATION_MESSAGE_DEFAUT = 15 * 60 * 1000  // 15 minutes en millisec
+const EXPIRATION_MESSAGE_DEFAUT = 15 * 60000  // 15 minutes en millisec
+const EXPIRATION_EMIT_MESSAGE_DEFAUT = 15000  // 15 secondes
 
 const debug = debugLib('millegrilles:common:amqpdao')
 const debugMessages = debugLib('millegrilles:common:amqpdao:messages')
@@ -1105,9 +1106,9 @@ class MilleGrillesAmqpDAO {
       timeout = setTimeout(
         () => {
           console.error("AMQPDAO ERROR timeout sur correlationId:%s, stack appel : %O", correlationId, erreurPotentielle)
-          fonction_callback(null, {'err': 'mq.timeout', correlationId, 'stack': erreurPotentielle.stack})
+          fonction_callback(null, {ok: false, 'err': 'mq.timeout', code: 50, correlationId, routingKey, message: jsonMessage, 'stack': erreurPotentielle.stack})
         },
-        15000
+        EXPIRATION_EMIT_MESSAGE_DEFAUT
       );
     }
 
