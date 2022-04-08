@@ -70,20 +70,27 @@ async function verifierUsager(socket, params) {
     }
     reponse.challengeCertificat = challengeCertificat
 
-    if(compteUsager.webauthn && !socket[CONST_WEBAUTHN_CHALLENGE]) {
+    if(compteUsager.webauthn) {
       // Generer un challenge U2F
       debug("Information cle usager : %O, hostname: %s", compteUsager.webauthn, hostnameRequest)
       const challengeWebauthn = await genererChallenge(methodesDisponibles, {hostname: hostnameRequest})
-      console.debug("!!! Information challenge webauthn : %O", challengeWebauthn)
 
-      // Conserver challenge pour verif
-      socket[CONST_WEBAUTHN_CHALLENGE] = {
-        challenge: challengeWebauthn.challenge, 
-        rpId: hostnameRequest, 
+      // On ne remplace pas le challenge s'il existe deja
+      if(!socket[CONST_WEBAUTHN_CHALLENGE]) {
+        // Conserver challenge pour verif
+        socket[CONST_WEBAUTHN_CHALLENGE] = {
+          challenge: challengeWebauthn.challenge, 
+          rpId: hostnameRequest, 
+          // allowCredentials: challengeWebauthn.allowCredentials
+        }
+      }
+
+      // Reutiliser challenge, inclure credentials
+      reponse.challengeWebauthn = {
+        ...socket[CONST_WEBAUTHN_CHALLENGE],
         allowCredentials: challengeWebauthn.allowCredentials
       }
     }
-    reponse.challengeWebauthn = socket[CONST_WEBAUTHN_CHALLENGE]
 
     // Attacher le nouveau certificat de l'usager si disponible
     if(compteUsager.certificat) {
