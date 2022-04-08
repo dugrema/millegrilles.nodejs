@@ -1055,6 +1055,7 @@ class MilleGrillesAmqpDAO {
 
     let infoErreur = null
 
+    let bypassCleanup = false
     let promise = new Promise((resolve, reject) => {
 
       var processed = false
@@ -1086,6 +1087,13 @@ class MilleGrillesAmqpDAO {
 
         infoErreur = {ok: false, 'err': 'mq.timeout', code: 50, correlationId, routingKey, message: jsonMessage}
 
+        // S'assurer qu'on ne fait pas un double-publish sur le meme correlationId
+        if(this.pendingResponses[correlationId]) {
+          infoErreur = null
+          bypassCleanup = true
+          return reject(new Error(`_transmettre double-publish sur correlationId ${correlationId}, abort`))
+        }
+
         // Creer une erreur pour conserver la stack d'appel.
         timeout = setTimeout(
           () => {
@@ -1095,9 +1103,6 @@ class MilleGrillesAmqpDAO {
           EXPIRATION_EMIT_MESSAGE_DEFAUT
         )
 
-        if(this.pendingResponses[correlationId]) {
-          reject(new Error(`_transmettre double-publish sur correlationId ${correlationId}, abort`))
-        }
         this.pendingResponses[correlationId] = {callback: fonction_callback, creationDate: new Date()}
       }
 
@@ -1130,6 +1135,10 @@ class MilleGrillesAmqpDAO {
 
     })
     .finally(()=>{
+      if(bypassCleanup) {
+        return debugCorrelation("_transmettre finally : *bypass* cleanup correlationId %s", correlationId)
+      }
+
       debugCorrelation("_transmettre finally : cleanup correlationId %s", correlationId)
       delete this.pendingResponses[correlationId]
       clearTimeout(timeout)
