@@ -335,75 +335,81 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
   opts = opts || {}
 
   const middleware = (socket, next) => {
-    // Injecter mq
-    socket.amqpdao = amqpdao
-    const headers = socket.handshake.headers
-    debugConnexions("server6.socketActionsMiddleware Headers: %O", headers)
 
-    // Configuration des listeners de base utilises pour enregistrer ou
-    // retirer les listeners des sockets
-    const configurationEvenements = configurerEvenements(socket)
-    socket.configurationEvenements = configurationEvenements
-    debugConnexions("server6.socketActionsMiddleware Configuration evenements : %O", socket.configurationEvenements)
+    try {
+      // Injecter mq
+      socket.amqpdao = amqpdao
+      const headers = socket.handshake.headers
+      debugConnexions("server6.socketActionsMiddleware Headers: %O", headers)
 
-    // Injecter nom d'usager sur le socket
-    let nomUsager = headers['x-user-name'],
-        userId = headers['x-user-id']
+      // Configuration des listeners de base utilises pour enregistrer ou
+      // retirer les listeners des sockets
+      const configurationEvenements = configurerEvenements(socket)
+      socket.configurationEvenements = configurationEvenements
+      debugConnexions("server6.socketActionsMiddleware Configuration evenements : %O", socket.configurationEvenements)
 
-    // Determiner score d'authentification
-    let authScore = headers['x-user-authscore']
+      // Injecter nom d'usager sur le socket
+      let nomUsager = headers['x-user-name'],
+          userId = headers['x-user-id']
 
-    if(!userId) {
-      if(opts.noPreAuth) {
-        // Mode maitredescomptes, utilise session pour charger valeurs si disponible
-        if(!nomUsager) nomUsager = session.nomUsager
-        if(!userId) userId = session.userId
-        if(!authScore) authScore = session.authScore
-      } else {
-        debugConnexions("ERREUR server6.socketActionsMiddleware : headers.user-id n'est pas fourni")
-        console.error("ERREUR server6.socketActionsMiddleware : headers.user-id n'est pas fourni")
-        return socket.disconnect()
+      // Determiner score d'authentification
+      let authScore = headers['x-user-authscore']
+
+      if(!userId) {
+        if(opts.noPreAuth) {
+          // Mode maitredescomptes, utilise session pour charger valeurs si disponible
+          if(!nomUsager) nomUsager = session.nomUsager
+          if(!userId) userId = session.userId
+          if(!authScore) authScore = session.authScore
+        } else {
+          debugConnexions("ERREUR server6.socketActionsMiddleware : headers.user-id n'est pas fourni")
+          console.error("ERREUR server6.socketActionsMiddleware : headers.user-id n'est pas fourni")
+          return socket.disconnect()
+        }
       }
+
+      if(authScore) {
+        authScore = Number(authScore)
+      } else {
+        authScore = 0
+      }
+
+      // Conserver l'information sur le socket (utiliser par apps)
+      socket.nomUsager = nomUsager
+      socket.userId = userId
+      socket.authScore = authScore
+
+      // Enregistrer evenements publics de l'application
+      enregistrerListener(socket, configurationEvenements.listenersPublics)
+      socket.activerListenersPrives = _ => enregistrerListenersPrives(socket, configurationEvenements.listenersPrives, opts)
+      socket.activerModeProtege = _ => {activerModeProtege(socket, configurationEvenements.listenersProteges)}
+
+      if(authScore > 0) {
+        // On peut activer options privees, l'usager est authentifie
+        debugConnexions("Configurer evenements prives : %O", configurationEvenements.listenersPrives)
+        socket.on('upgradeProtege', (params, cb)=>upgradeConnexion(socket, params, cb))
+        socket.on('upgrade', (params, cb)=>upgradeConnexion(socket, params, cb))
+        // socket.activerListenersPrives()
+      }
+
+      socket.on('unsubscribe', (params, cb) => unsubscribe(socket, params, cb))
+      socket.on('downgradePrive', (params, cb) => downgradePrive(socket, params, cb))
+      socket.on('genererChallengeCertificat', async cb => {cb(await genererChallengeCertificat(socket))})
+      socket.on('getCertificatsMaitredescles', async cb => {cb(await getCertificatsMaitredescles(socket))})
+
+      socket.subscribe =   (params, cb) => { subscribe(socket, params, cb) }
+      socket.unsubscribe = (params, cb) => { unsubscribe(socket, params, cb) }
+      socket.modeProtege = false
+
+      socket.on('getInfoIdmg', (params, cb) => getInfoIdmg(socket, params, cb, opts))
+
+      debugConnexions("Socket events apres connexion: %O", Object.keys(socket._events))
+
+      next()
+    } catch(err) {
+      console.error("server6.socketActionsMiddleware.middleware ERROR %O", err)
+      socket.disconnect()
     }
-
-    if(authScore) {
-      authScore = Number(authScore)
-    } else {
-      authScore = 0
-    }
-
-    // Conserver l'information sur le socket (utiliser par apps)
-    socket.nomUsager = nomUsager
-    socket.userId = userId
-    socket.authScore = authScore
-
-    // Enregistrer evenements publics de l'application
-    enregistrerListener(socket, configurationEvenements.listenersPublics)
-    socket.activerListenersPrives = _ => enregistrerListenersPrives(socket, configurationEvenements.listenersPrives, opts)
-    socket.activerModeProtege = _ => {activerModeProtege(socket, configurationEvenements.listenersProteges)}
-
-    if(authScore > 0) {
-      // On peut activer options privees, l'usager est authentifie
-      debugConnexions("Configurer evenements prives : %O", configurationEvenements.listenersPrives)
-      socket.on('upgradeProtege', (params, cb)=>upgradeConnexion(socket, params, cb))
-      socket.on('upgrade', (params, cb)=>upgradeConnexion(socket, params, cb))
-      // socket.activerListenersPrives()
-    }
-
-    socket.on('unsubscribe', (params, cb) => unsubscribe(socket, params, cb))
-    socket.on('downgradePrive', (params, cb) => downgradePrive(socket, params, cb))
-    socket.on('genererChallengeCertificat', async cb => {cb(await genererChallengeCertificat(socket))})
-    socket.on('getCertificatsMaitredescles', async cb => {cb(await getCertificatsMaitredescles(socket))})
-
-    socket.subscribe =   (params, cb) => { subscribe(socket, params, cb) }
-    socket.unsubscribe = (params, cb) => { unsubscribe(socket, params, cb) }
-    socket.modeProtege = false
-
-    socket.on('getInfoIdmg', (params, cb) => getInfoIdmg(socket, params, cb, opts))
-
-    debugConnexions("Socket events apres connexion: %O", Object.keys(socket._events))
-
-    next()
   }
 
   return middleware
@@ -411,10 +417,10 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
 }
 
 async function upgradeConnexion(socket, params, cb) {
-  const session = socket.handshake.session
-
-  debugConnexions("server6.enregistrerListenersPrives event upgrade %O / session %O", params, session)
   try {
+    const session = socket.handshake.session
+    debugConnexions("server6.enregistrerListenersPrives event upgrade %O / session %O", params, session)
+
     const resultat = await veriferUpgradeProtegerApp(socket, params)
     debugConnexions("server6.upgradeConnexion event upgrade resultat %O", resultat)
 
@@ -475,6 +481,8 @@ function downgradePrive(socket, params, cb) {
 }
 
 function enregistrerListener(socket, collectionListener) {
+  if(!collectionListener) return
+  
   debugConnexions("server6.enregistrerListeners %O", collectionListener.map(item=>item.eventName))
 
   const eventsExistants = Object.keys(socket._events)
