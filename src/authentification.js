@@ -46,8 +46,7 @@ async function verifierUsager(socket, params) {
   const infoUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager, fingerprintPk)
   const compteUsager = infoUsager
 
-  debug("Compte usager recu")
-  debug(infoUsager)
+  debug("Compte usager recu : %O", infoUsager)
 
   if(compteUsager) {
     // Usager connu
