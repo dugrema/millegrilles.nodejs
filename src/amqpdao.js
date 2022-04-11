@@ -659,6 +659,10 @@ class MilleGrillesAmqpDAO {
     let entete = commandeSignee['en-tete'],
         partition = opts.partition || entete.partition,
         action = opts.action || entete.action
+
+    // Utiliser domaine de l'entete au besoin
+    domaine = domaine || entete.domaine
+
     if(!opts.nowait) {
       correlation = entete['uuid_transaction']
     }
@@ -672,7 +676,7 @@ class MilleGrillesAmqpDAO {
     if(partition) routingKey = routingKey + '.' + partition
     if(action) routingKey = routingKey + '.' + action
     debug("Transmettre transaction routing:%s, %O", routingKey, commandeSignee)
-    let promise = this._transmettre(routingKey, jsonMessage, correlation)
+    let promise = this._transmettre(routingKey, jsonMessage, correlation, opts)
 
     return promise
   }
