@@ -251,6 +251,13 @@ class RoutingKeyManager {
       }
     }
 
+    let roomParamList = roomParam
+    if(!roomParam) {
+      roomParamList = [null]
+    } else if(typeof(roomParam) === 'string') {
+      roomParamList = [roomParam]
+    }
+
     for(var routingKey_idx in routingKeys) {
       let routingKeyName = routingKeys[routingKey_idx];
       debug("Ajouter binding routingKey %O", routingKeyName)
@@ -258,21 +265,23 @@ class RoutingKeyManager {
       // Ajouter la routing key
       this.mq.channel.bindQueue(reply_q.queue, exchange, routingKeyName);
 
-      // Associer le socket a la room appropriee
-      let roomName
-      if(userId) {
-        // Enregistrement pour un user en particulier
-        roomName = `${userId}/${routingKeyName}`
-      } else if(roomParam) {
-        roomName = `${exchange}/${routingKeyName}/${roomParam}`
-      } else {
-        // Enregistrement sur l'exchange (global, voit passer tous les messages correspondants)
-        roomName = `${exchange}/${routingKeyName}`
-      }
-      debug("Socket id:%s, join room %s", socketId, roomName)
-      socket.join(roomName)
+      roomParamList.forEach(roomParam=>{
+        // Associer le socket a la room appropriee
+        let roomName
+        if(userId) {
+          // Enregistrement pour un user en particulier
+          roomName = `${userId}/${routingKeyName}`
+        } else if(roomParam) {
+          roomName = `${exchange}/${routingKeyName}/${roomParam}`
+        } else {
+          // Enregistrement sur l'exchange (global, voit passer tous les messages correspondants)
+          roomName = `${exchange}/${routingKeyName}`
+        }
+        debug("Socket id:%s, join room %s", socketId, roomName)
+        socket.join(roomName)
 
-      this.roomsEvenements[roomName] = {exchange, reply_q, roomName, routingKeyName, userId}
+        this.roomsEvenements[roomName] = {exchange, reply_q, roomName, routingKeyName, userId}
+      })
     }
 
   }
