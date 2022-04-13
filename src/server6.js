@@ -524,8 +524,16 @@ function subscribe(socket, params, cb) {
     const channel = amqpdao.channel,
           reply_q = amqpdao.reply_q
 
-    exchanges.forEach(exchange=>{
-      amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, exchange, channel, reply_q, {userId, roomParam, mapper})
+
+    // Supporter plusieurs rooms a la fois
+    let roomParamListe = [roomParam]  // Not: roomParam peut etre null
+    if(roomParam && Array.isArray(roomParam)) {
+      roomParamListe = roomParam  // deja une liste
+    }
+    roomParamListe.forEach(roomParamEffectif=>{
+      exchanges.forEach(exchange=>{
+        amqpdao.routingKeyManager.addRoutingKeysForSocket(socket, routingKeys, exchange, channel, reply_q, {userId, roomParam: roomParamEffectif, mapper})
+      })
     })
 
     debugConnexions("Socket events apres subscribe: %O", Object.keys(socket._events))
@@ -560,12 +568,19 @@ function unsubscribe(socket, params, cb) {
       return
     }
 
-    exchanges.forEach(ex=>{
-      routingKeys.forEach(rk=>{
-        let eventName = `${ex}/${rk}`
-        if(roomParam) eventName += '/' + roomParam
-        debug('Unsubscribe socket %s de %s', socket.id, eventName)
-        socket.leave(eventName)
+    // Supporter plusieurs rooms a la fois
+    let roomParamListe = [roomParam]  // Not: roomParam peut etre null
+    if(roomParam && Array.isArray(roomParam)) {
+      roomParamListe = roomParam  // deja une liste
+    }
+    roomParamListe.forEach(roomParamEffectif=>{
+      exchanges.forEach(ex=>{
+        routingKeys.forEach(rk=>{
+          let eventName = `${ex}/${rk}`
+          if(roomParamEffectif) eventName += '/' + roomParamEffectif
+          debug('Unsubscribe socket %s de %s', socket.id, eventName)
+          socket.leave(eventName)
+        })
       })
     })
     

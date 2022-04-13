@@ -293,6 +293,8 @@ class RoutingKeyManager {
 
       const roomsParamsParBinding = {}
 
+      debug("Rooms evenements : %O", Object.keys(this.roomsEvenements))
+
       // Faire la liste des routing keys d'evenements
       for(let roomName in this.roomsEvenements) {
         const roomConfig = this.roomsEvenements[roomName]
@@ -308,15 +310,21 @@ class RoutingKeyManager {
           let exchange = null
           roomParam = roomNameSplit.pop(); rk = roomNameSplit.pop(); exchange = roomNameSplit.pop()
           let roomBinding = `${exchange}/${rk}`
-          if(roomsParamsParBinding[roomBinding] === undefined) {
+          if(!roomsParamsParBinding[roomBinding]) {
             roomsParamsParBinding[roomBinding] = {replyQ, exchange, roomName, routingKeyName, compteur: 0}
           }
+          // debug("!!! Room verif %s, roomCOnfig.roomName: %s, binding: %s, param: %s, socketRoom : %O", roomName, roomConfig.roomName, roomBinding, roomParam, socketRoom)
           if(socketRoom) roomsParamsParBinding[roomBinding].compteur++
         } else if(!socketRoom) {
           debug("Nettoyage room %s, retrait routing key %s", roomConfig.roomName, routingKeyName)
           this.mq.channel.unbindQueue(replyQ, exchange, routingKeyName);
         } else {
           // debug("Routing key %s, room %s, %d membres", routingKeyName, roomConfig.roomName, socketRoom.size)
+        }
+
+        if(!socketRoom) {
+          debug("Supprimer la room %s pour eviter nettoyages subsequents", roomName)
+          delete this.roomsEvenements[roomName]
         }
       }
 
@@ -326,9 +334,6 @@ class RoutingKeyManager {
         if(info.compteur === 0) {
           debug("Retrait binding %s", binding)
           this.mq.channel.unbindQueue(info.replyQ, info.exchange, info.routingKeyName);
-
-          debug("Supprimer la room %s pour eviter nettoyages subsequents", info.roomName)
-          delete this.roomsEvenements[info.roomName]
         }
       })
 
