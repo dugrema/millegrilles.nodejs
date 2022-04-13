@@ -311,7 +311,7 @@ class RoutingKeyManager {
           roomParam = roomNameSplit.pop(); rk = roomNameSplit.pop(); exchange = roomNameSplit.pop()
           let roomBinding = `${exchange}/${rk}`
           if(!roomsParamsParBinding[roomBinding]) {
-            roomsParamsParBinding[roomBinding] = {replyQ, exchange, roomName, routingKeyName, compteur: 0}
+            roomsParamsParBinding[roomBinding] = {replyQ, exchange, routingKeyName, compteur: 0}
           }
           // debug("!!! Room verif %s, roomCOnfig.roomName: %s, binding: %s, param: %s, socketRoom : %O", roomName, roomConfig.roomName, roomBinding, roomParam, socketRoom)
           if(socketRoom) roomsParamsParBinding[roomBinding].compteur++
