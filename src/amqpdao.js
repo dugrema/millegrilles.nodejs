@@ -366,7 +366,7 @@ class MilleGrillesAmqpDAO {
         const tag = await this.channel.consume(
           q.queue,
           msg => { this._traiterMessageCustom(msg, infoQ) },
-          {noAck: true}
+          {noAck: false}
         )
         infoQ.tag = tag.consumerTag
         debug("Queue custom %s cree (tag) : %O", nomQ, tag, q)
@@ -426,12 +426,12 @@ class MilleGrillesAmqpDAO {
             // avec ACK dans finally pour eviter de bloquer.
             console.error(`${new Date()} _traiterMessageCustom : Erreur traitement message : ${err}\n${msg}`)
           } finally {
-            // this.channel.ack(msg);  // Change pour auto-ack
+            this.channel.ack(msg);  // Change pour auto-ack
           }
 
           // Tenter d'aller chercher un autre message
           // Traite un message a la fois
-          msg = await this.channel.get(infoQ.q.queue, {noAck: true});
+          msg = await this.channel.get(infoQ.q.queue, {noAck: false});
           // debug("Message operation longue suivant")
           // debug(msg);
         }
@@ -440,7 +440,7 @@ class MilleGrillesAmqpDAO {
         var nouveauTag = await this.channel.consume(
           infoQ.q.queue,
           async msg => { this._traiterMessageCustom(msg, infoQ) },
-          {noAck: true}
+          {noAck: false}
         )
         infoQ.tag = nouveauTag.consumerTag
       }
@@ -449,6 +449,7 @@ class MilleGrillesAmqpDAO {
     } else {
       console.error(new Date() + " Message operation longue recu durant traitement, NACK vers la Q");
       // Remettre le message sur la Q avec un nack
+      this.channel.nack(msg)
     }
   }
 
