@@ -40,11 +40,14 @@ function configurerThreadPutFichiersConsignation(url, amqpdao, opts) {
 
     // Configurer httpsAgent avec les certificats/cles
     const pki = amqpdao.pki
+    const {chainePEM: cert, cle: key } = pki
+    if(!cert) throw new Error("fichiersTransfertBackingstore.configurerThreadPutFichiersConsignation Certificat non disponible")
+    if(!key) throw new Error("fichiersTransfertBackingstore.configurerThreadPutFichiersConsignation Cle non disponible")
+    debug("configurerThreadPutFichiersConsignation _https.Agent cert : %s", '\n' + cert)
     _httpsAgent = new https.Agent({
         rejectUnauthorized: false,
-        // ca: pki.ca,
-        cert: pki.chainePEM,
-        key: pki.cle,
+        cert, key,
+        ca: pki.ca,
     })
 
     // Premiere execution apres redemarrage, delai court
