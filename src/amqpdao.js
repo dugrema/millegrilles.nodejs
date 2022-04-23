@@ -87,6 +87,20 @@ class MilleGrillesAmqpDAO {
     return this._connect();
   }
 
+  async close() {
+    if(this.intervalEntretien) {
+      clearInterval(this.intervalEntretien)
+      this.intervalEntretien = null
+    }
+    if(this.connection) {
+      const connection = this.connection
+      this.connection = null
+      connection.removeAllListeners('error')
+      connection.removeAllListeners('close')
+      await connection.close()
+    }
+  }
+
   _connect() {
 
     // Reset erreurs
@@ -143,7 +157,7 @@ class MilleGrillesAmqpDAO {
           this.connection = null
         })
         ch.on('close', () => {
-          console.error(new Date() + ' Fermeture channel (close), on va recycler la connexion : %O', reason)
+          console.error(new Date() + ' Fermeture channel (close), on va recycler la connexion')
           this.channelError = 'closed'  // Pour l'entretien si c'est une fermeture impromptue
           this.channel = null
           if(this.connection) this.connection.close()
