@@ -113,7 +113,6 @@ async function _threadPutFichiersConsignation() {
     }
 }
 
-
 /**
  * Recoit une partie de fichier.
  * Configurer params :position et :correlation dans path expressjs.
@@ -135,24 +134,31 @@ function middlewareRecevoirFichier(opts) {
               position = req.params.position || 0
         debug("middlewareRecevoirFichier PUT %s position %d", correlation, position)
         
-        // Verifier si le repertoire existe, le creer au besoin
-        const pathFichierPut = await getPathRecevoir(pathStaging, correlation, position)
-        debug("PUT fichier %s", pathFichierPut)
-
-        // Creer output stream
-        const writer = fs.createWriteStream(pathFichierPut)
-
         try {
-            const promise = new Promise((resolve, reject)=>{
-                req.on('end', ()=>{ resolve() })
-                req.on('error', err=>{ reject(err) })
-            })
-            req.pipe(writer)
-            await promise
+            await stagingPut(req, correlation, position, opts)
         } catch(err) {
             console.error("middlewareRecevoirFichier Erreur PUT: %O", err)
             return res.sendStatus(500)
         }
+
+        // // Verifier si le repertoire existe, le creer au besoin
+        // const pathFichierPut = await getPathRecevoir(pathStaging, correlation, position)
+        // debug("PUT fichier %s", pathFichierPut)
+
+        // // Creer output stream
+        // const writer = fs.createWriteStream(pathFichierPut)
+
+        // try {
+        //     const promise = new Promise((resolve, reject)=>{
+        //         req.on('end', ()=>{ resolve() })
+        //         req.on('error', err=>{ reject(err) })
+        //     })
+        //     req.pipe(writer)
+        //     await promise
+        // } catch(err) {
+        //     console.error("middlewareRecevoirFichier Erreur PUT: %O", err)
+        //     return res.sendStatus(500)
+        // }
 
         if(opts.chainOnSuccess === true) {
             // Chainage
@@ -272,6 +278,7 @@ async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
     const pathUploadItem = path.join(pathStaging, PATH_STAGING_UPLOAD, item)
 
     if(opts.cles) {
+        // On a une commande de maitre des cles. Va etre acheminee et geree par le serveur de consignation.
         let contenu = opts.cles
         // contenu.corrompre = true
         try { await validerMessage(pki, contenu) } 
@@ -287,6 +294,7 @@ async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
     }
 
     if(opts.transaction) {
+        // On a une commande de transaction. Va etre acheminee et geree par le serveur de consignation.
         let contenu = opts.transaction
         // contenu.corrompre = true
         try { await validerMessage(pki, contenu) } 
@@ -541,9 +549,66 @@ async function putAxios(url, item, position, dataBuffer) {
     return reponsePut
 }
 
+// Les methodes suivantes permettent de conserver un fichier localement (simuler upload tiers)
+// Utile pour fichiers generes (e.g. transcodage media)
+
+/**
+ * Conserver une partie de fichier provenant d'un inputStream (e.g. req)
+ * @param {*} inputStream 
+ * @param {*} correlation 
+ * @param {*} position 
+ * @param {*} opts 
+ * @returns 
+ */
+ async function stagingPut(inputStream, correlation, position, opts) {
+    opts = opts || {}
+
+    // Preparer directories
+    // const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+
+    // Verifier si le repertoire existe, le creer au besoin
+    const pathFichierPut = await getPathRecevoir(_pathStaging, correlation, position)
+    debug("PUT fichier %s", pathFichierPut)
+
+    // Creer output stream
+    const writer = fs.createWriteStream(pathFichierPut)
+
+    if(ArrayBuffer.isView(inputStream)) {
+        // Traiter buffer directement
+        writer.write(inputStream)
+    } else if(typeof(obj._read === 'function')) {
+        // Assumer stream
+        const promise = new Promise((resolve, reject)=>{
+            inputStream.on('end', ()=>{ resolve() })
+            inputStream.on('error', err=>{ reject(err) })
+        })
+        inputStream.pipe(writer)
+        
+        return promise
+    } else {
+        throw new Error("Type inputstream non supporte")
+    }
+}
+
+async function stagingReady(amqpdao, transactionContenu, commandeMaitreCles, correlation, opts) {
+    // const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    const hachage = commandeMaitreCles.hachage_bytes
+
+    const optsReady = {...opts, cles: commandeMaitreCles, transaction: transactionContenu}
+
+    await readyStaging(amqpdao, _pathStaging, correlation, hachage, optsReady)
+}
+
+async function stagingDelete(correlation, opts) {
+    // const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    await deleteStaging(_pathStaging, correlation)
+}
+
 module.exports = { 
     configurerThreadPutFichiersConsignation,
     middlewareRecevoirFichier, 
     middlewareReadyFichier, 
     middlewareDeleteStaging,
+
+    stagingPut, stagingReady, stagingDelete,
 }
