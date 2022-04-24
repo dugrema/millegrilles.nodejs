@@ -9,7 +9,7 @@ const axios = require('axios')
 
 const { VerificateurHachage } = require('./hachage')
 
-const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/transfertStaging',
+const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
       PATH_STAGING_UPLOAD = 'upload',
       PATH_STAGING_READY = 'ready',
       FICHIER_TRANSACTION_CLES = 'transactionCles.json',
