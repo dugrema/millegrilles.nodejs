@@ -125,7 +125,7 @@ function middlewareRecevoirFichier(opts) {
     opts = opts || {}
 
     // Preparer directories
-    const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
     const pathUpload = path.join(pathStaging, PATH_STAGING_UPLOAD)
     fsPromises.mkdir(pathUpload, {recursive: true, mode: 0o750}).catch(err=>console.error("Erreur preparer path staging upload : %O", err))
 
@@ -188,7 +188,7 @@ function middlewareReadyFichier(amqpdao, opts) {
     if(!amqpdao || !amqpdao.pki) throw new Error("Parametre amqpdao ou amqpdao.pki pas initialise")
 
     // Preparer directories
-    const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
     const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY)
     fsPromises.mkdir(pathReadyItem, {recursive: true, mode: 0o750}).catch(err=>console.error("Erreur preparer path staging ready : %O", err))
     
@@ -243,7 +243,7 @@ function middlewareReadyFichier(amqpdao, opts) {
  */
 function middlewareDeleteStaging(opts) {
 
-    const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
 
     return async (req, res) => {
         const correlation = req.params.correlation
@@ -566,10 +566,10 @@ async function putAxios(url, item, position, dataBuffer) {
     opts = opts || {}
 
     // Preparer directories
-    // const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
 
     // Verifier si le repertoire existe, le creer au besoin
-    const pathFichierPut = await getPathRecevoir(_pathStaging, correlation, position)
+    const pathFichierPut = await getPathRecevoir(pathStaging, correlation, position)
     debug("PUT fichier %s", pathFichierPut)
 
     // Creer output stream
@@ -593,17 +593,17 @@ async function putAxios(url, item, position, dataBuffer) {
 }
 
 async function stagingReady(amqpdao, transactionContenu, commandeMaitreCles, correlation, opts) {
-    // const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
     const hachage = commandeMaitreCles.hachage_bytes
 
     const optsReady = {...opts, cles: commandeMaitreCles, transaction: transactionContenu}
 
-    await readyStaging(amqpdao, _pathStaging, correlation, hachage, optsReady)
+    await readyStaging(amqpdao, pathStaging, correlation, hachage, optsReady)
 }
 
 async function stagingDelete(correlation, opts) {
-    // const pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
-    await deleteStaging(_pathStaging, correlation)
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
+    await deleteStaging(pathStaging, correlation)
 }
 
 module.exports = { 
