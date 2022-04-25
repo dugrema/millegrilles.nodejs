@@ -143,25 +143,6 @@ function middlewareRecevoirFichier(opts) {
             return res.sendStatus(500)
         }
 
-        // // Verifier si le repertoire existe, le creer au besoin
-        // const pathFichierPut = await getPathRecevoir(pathStaging, correlation, position)
-        // debug("PUT fichier %s", pathFichierPut)
-
-        // // Creer output stream
-        // const writer = fs.createWriteStream(pathFichierPut)
-
-        // try {
-        //     const promise = new Promise((resolve, reject)=>{
-        //         req.on('end', ()=>{ resolve() })
-        //         req.on('error', err=>{ reject(err) })
-        //     })
-        //     req.pipe(writer)
-        //     await promise
-        // } catch(err) {
-        //     console.error("middlewareRecevoirFichier Erreur PUT: %O", err)
-        //     return res.sendStatus(500)
-        // }
-
         if(opts.chainOnSuccess === true) {
             // Chainage
             debug("middlewareRecevoirFichier chainage next")
