@@ -25,7 +25,8 @@ let _timerPutFichiers = null,
     _amqpdao = null,
     _urlConsignationTransfert = null,
     _httpsAgent = null,
-    _pathStaging = null
+    _pathStaging = null,
+    _consignerFichier = transfererFichierVersConsignation
 
 // Queue de fichiers a telecharger
 const _queueItems = []
@@ -37,6 +38,7 @@ function configurerThreadPutFichiersConsignation(url, amqpdao, opts) {
     _amqpdao = amqpdao
 
     _pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    if(opts.consignerFichier) _consignerFichier = opts.consignerFichier
 
     // Configurer httpsAgent avec les certificats/cles
     const pki = amqpdao.pki
@@ -87,7 +89,7 @@ async function _threadPutFichiersConsignation() {
                 // debug("Entry path : %O", entry);
                 const item = entry.basename
                 debug("Traiter PUT pour item %s", item)
-                await transfererFichierVersConsignation(_amqpdao, pathReady, item)
+                await _consignerFichier(_amqpdao, pathReady, item)
             }
         }
 
@@ -96,7 +98,7 @@ async function _threadPutFichiersConsignation() {
         while(_queueItems.length > 0) {
             const item = _queueItems.shift()  // FIFO
             debug("Traiter PUT pour item %s", item)
-            await transfererFichierVersConsignation(_amqpdao, pathReady, item)
+            await _consignerFichier(_amqpdao, pathReady, item)
         }
 
     } catch(err) {
@@ -576,7 +578,7 @@ async function putAxios(url, item, position, dataBuffer) {
     if(ArrayBuffer.isView(inputStream)) {
         // Traiter buffer directement
         writer.write(inputStream)
-    } else if(typeof(obj._read === 'function')) {
+    } else if(typeof(inputStream._read === 'function')) {
         // Assumer stream
         const promise = new Promise((resolve, reject)=>{
             inputStream.on('end', ()=>{ resolve() })
@@ -606,9 +608,12 @@ async function stagingDelete(correlation, opts) {
 
 module.exports = { 
     configurerThreadPutFichiersConsignation,
+
     middlewareRecevoirFichier, 
     middlewareReadyFichier, 
     middlewareDeleteStaging,
 
     stagingPut, stagingReady, stagingDelete,
+
+    traiterTransactions,
 }
