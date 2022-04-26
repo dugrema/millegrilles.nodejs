@@ -574,6 +574,7 @@ async function putAxios(url, item, position, dataBuffer) {
 }
 
 async function stagingReady(amqpdao, transactionContenu, commandeMaitreCles, correlation, opts) {
+    opts = opts || {}
     const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
     const hachage = commandeMaitreCles.hachage_bytes
 
@@ -583,6 +584,7 @@ async function stagingReady(amqpdao, transactionContenu, commandeMaitreCles, cor
 }
 
 async function stagingDelete(correlation, opts) {
+    opts = opts || {}
     const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
     await deleteStaging(pathStaging, correlation)
 }
