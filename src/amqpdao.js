@@ -205,7 +205,7 @@ class MilleGrillesAmqpDAO {
             const cert = this.pki.chainePEM,
                   key = this.pki.cle,
                   ca = this.pki.ca,
-                  port = 443
+                  port = 444
 
             // Extraire de amqps://HOST:port/vhost
             // Par defaut on prend le HOST pour acceder via nginx
@@ -216,7 +216,7 @@ class MilleGrillesAmqpDAO {
               rejectUnauthorized: false,
             })
 
-            const urlConnexion = 'https://' + host + ':' + port + '/administration/ajouterCompte'
+            const urlConnexion = new URL('https://' + host + ':' + port + '/administration/ajouterCompte').href
             console.log("Connecter a : %s\nCerts\n%s\nCA\n%s", urlConnexion, cert, ca)
             const data = {'certificat': cert}
 
@@ -231,7 +231,7 @@ class MilleGrillesAmqpDAO {
 
               if(host !== 'nginx') {
                 // Fallback sur https;//nginx/...
-                const urlConnexion = 'https://nginx/administration/ajouterCompte'
+                const urlConnexion = new URL(`https://nginx:${port}/administration/ajouterCompte`).href
                 console.log("Connecter a : %s\nCerts\n%s\nCA\n%s", urlConnexion, cert, ca)
                 return axios({method: 'post', url: urlConnexion, data, httpsAgent})
               }
