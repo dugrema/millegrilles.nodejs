@@ -215,7 +215,8 @@ class MilleGrillesAmqpDAO {
             let host = hostMq
             if(host === 'mq') {
               // Remplacer le host mq par nginx
-              host = process.env.MG_INSTALLATION_HOST || process.env.HOST || 'monitor'
+              // host = process.env.MG_INSTALLATION_HOST || process.env.HOST || 'monitor'
+              host = 'monitor'
             }
             const httpsAgent = new https.Agent({
               ca, cert,
