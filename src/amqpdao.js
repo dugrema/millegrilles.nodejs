@@ -209,7 +209,14 @@ class MilleGrillesAmqpDAO {
 
             // Extraire de amqps://HOST:port/vhost
             // Par defaut on prend le HOST pour acceder via nginx
-            var host = process.env.MG_INSTALLATION_HOST || process.env.HOST || 'nginx'
+            // Tenter d'utiliser le host mq (si different du host interne 'mq')
+            const urlMq = new URL(''+this.url)
+            const hostMq = urlMq.hostname
+            let host = hostMq
+            if(host === 'mq') {
+              // Remplacer le host mq par nginx
+              host = process.env.MG_INSTALLATION_HOST || process.env.HOST || 'monitor'
+            }
             const httpsAgent = new https.Agent({
               ca, cert,
               key,
