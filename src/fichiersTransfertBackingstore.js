@@ -465,7 +465,17 @@ async function transfererFichierVersConsignation(amqpdao, pathReady, item) {
 async function traiterTransactions(amqpdao, pathReady, item) {
     let transactionContenu = null, transactionCles = null
     const pki = amqpdao.pki
+
     const transactions = {}
+
+    try {
+        const pathEtat = path.join(pathReady, item, FICHIER_ETAT)
+        const etat = JSON.parse(await fsPromises.readFile(pathEtat))
+        transactions.etat = etat
+    } catch(err) {
+        console.warn("ERROR durant chargement de l'etat de consignation de %O", item)
+    }
+
     try {
         const pathReadyItemCles = path.join(pathReady, item, FICHIER_TRANSACTION_CLES)
         transactionCles = JSON.parse(await fsPromises.readFile(pathReadyItemCles))
@@ -489,6 +499,7 @@ async function traiterTransactions(amqpdao, pathReady, item) {
             throw err
         }
     }
+    
     if(transactionContenu) {
         try { 
             await validerMessage(pki, transactionContenu) 
