@@ -438,7 +438,7 @@ class MilleGrillesPKI {
 
         if(this.redisClient) {
           const valeurCache = {'pems': chaine_pem, 'ca': certificatCaTiers}
-          await this.redisClient.set(cleCert, JSON.stringify(valeurCache), 'NX', 'EX', EXPIRATION_REDIS_CERT)
+          await this.redisClient.set(cleCert, JSON.stringify(valeurCache), {NX: true, EX: EXPIRATION_REDIS_CERT})
         }
 
         // Informatif seulement : verifier si c'est bien le certificat qui a ete demande
