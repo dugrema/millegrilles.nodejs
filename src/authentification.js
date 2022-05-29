@@ -445,16 +445,16 @@ async function verifierSignatureCertificat(idmg, chainePem, challengeSession, ch
   const { cert: certificat, idmg: idmgChaine } = await validerChaineCertificats(chainePem, opts)
 
   const nomUsager = certificat.subject.getField('CN').value,
-        organizationalUnit = certificat.subject.getField('OU').value,
         extensions = await extraireExtensionsMillegrille(certificat),
-        userId = extensions.userId
+        userId = extensions.userId,
+        roles = extensions.roles
 
-  debug("verifierSignatureCertificat userId: %s, cert: %O", userId, chainePem)
+  debug("verifierSignatureCertificat userId: %s, roles: %s, cert: %O", userId, roles, chainePem)
 
   if(!idmg || idmg !== idmgChaine) {
     console.error("Le certificat ne correspond pas a la millegrille : idmg %s !== %s", idmg, idmgChaine)
-  } else if(organizationalUnit !== 'Usager') {
-    console.error("Certificat fin n'est pas un certificat de Navigateur. OU=" + organizationalUnit)
+  } else if(!roles.includes('usager')) {
+    console.error("Certificat fin n'est pas un certificat de role usager. roles=" + roles)
   } else if( challengeBody.date !== challengeSession.date ) {
     console.error(`Challenge certificat mismatch date : session ${challengeSession.date} et body ${challengeBody.date}`)
   } else if( challengeBody.data !== challengeSession.data ) {
