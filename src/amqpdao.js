@@ -216,7 +216,7 @@ class MilleGrillesAmqpDAO {
             if(host === 'mq') {
               // Remplacer le host mq par nginx
               // host = process.env.MG_INSTALLATION_HOST || process.env.HOST || 'monitor'
-              host = 'monitor'
+              host = 'nginx'
             }
             const httpsAgent = new https.Agent({
               ca, cert,
@@ -225,7 +225,7 @@ class MilleGrillesAmqpDAO {
             })
 
             const urlConnexion = new URL('https://' + host + ':' + port + '/administration/ajouterCompte').href
-            console.log("Connecter a : %s\nCerts\n%s\nCA\n%s", urlConnexion, cert, ca)
+            console.log("Connecter a : %s\nCertificat:\n%s\nCertificat CA:\n%s", urlConnexion, cert, ca)
             const data = {'certificat': cert}
 
             axios({method: 'post', url: urlConnexion, data, httpsAgent})
