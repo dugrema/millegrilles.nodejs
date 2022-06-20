@@ -538,6 +538,8 @@ class MilleGrillesAmqpDAO {
     var callbackInfo = null
     try {
 
+      let reponse = null, properties = msg.properties || {}
+
       if( ! exchange && correlationId ) {  // Exclure message sur exchange, uniquement utiliser direct Q ('')
         debug("Reponse message direct, correlationId : %s", correlationId)
         debugCorrelation("Reponse message direct, correlationId : %s", correlationId)
@@ -549,23 +551,28 @@ class MilleGrillesAmqpDAO {
             delete this.pendingResponses[correlationId]
           }
           debug("traiterMessageValide: executer callback")
-          await callbackInfo.callback(messageDict)
+          reponse = await callbackInfo.callback(messageDict)
           debug("traiterMessageValide: callback termine")
         } else {
           debug("Message recu sur Q (direct), aucun callback pour correlationId %s. Transferer au routingKeyManager.", correlationId)
-          await this.routingKeyManager.handleResponse(correlationId, msg.content, {properties: msg.properties, fields: msg.fields});
+          reponse = await this.routingKeyManager.handleResponse(correlationId, msg.content, {properties, fields: msg.fields});
         }
 
       } else if(routingKey) {
         // Traiter le message via handlers
         debugMessages("traiterMessageValide par routing keys:\nFields: %O\nProperties: %O\n%O",
           msg.fields, msg.properties, messageDict)
-        await this.routingKeyManager.handleMessage(
-          routingKey, msg.content, {properties: msg.properties, fields: msg.fields});
+        reponse = await this.routingKeyManager.handleMessage(
+          routingKey, msg.content, {properties, fields: msg.fields});
 
       } else {
         console.warn("Recu message sans correlation Id ou routing key :\n%O", messageDict);
       }
+
+      if(reponse != null && properties.correlationId && properties.replyTo) {
+        await this.transmettreReponse(reponse, properties.replyTo, properties.correlationId)
+      }
+
     } catch(err) {
       console.error("Erreur traitement message : erreur %O\nRouting Keys %O, correlation id : %s", err, routingKey, correlationId)
       if(callbackInfo && callbackInfo.callback) {
@@ -745,31 +752,18 @@ class MilleGrillesAmqpDAO {
   // Transmet reponse (e.g. d'une requete)
   // Repond directement a une Q (exclusive)
   async transmettreReponse(message, replyTo, correlationId) {
-    const messageFormatte = await this.pki.formatterMessage(message);
+    const messageFormatte = await this.pki.formatterMessage(message, null, {attacherCertificat: true});
     const jsonMessage = JSON.stringify(messageFormatte);
 
     // Faire la publication
-    return new Promise((resolve, reject)=>{
-      debugCorrelation("transmettreReponse Repondre a correlationId %s", correlationId)
-      this.channel.publish(
-        '',
-        replyTo,
-        Buffer.from(jsonMessage),
-        {
-          correlationId: correlationId
-        },
-        function(err, ok) {
-          if(err) {
-            debug("Erreur MQ Callback");
-            debug(err);
-            reject(err);
-            return;
-          }
-          resolve(ok);
-        }
-      );
-    });
+    debugCorrelation("transmettreReponse Repondre a correlationId %s", correlationId)
 
+    const properties = {
+      correlationId: correlationId
+    }
+
+    // Faire la publication
+    this.channel.publish('', replyTo, Buffer.from(jsonMessage), properties)
   }
 
   // _formatterInfoTransaction(domaine, opts) {
@@ -820,7 +814,7 @@ class MilleGrillesAmqpDAO {
       this.channel.publish(
         this.exchange,
         routingKey,
-         new Buffer(jsonMessage),
+        new Buffer(jsonMessage),
          {
            correlationId,
            replyTo: this.reply_q.queue,
@@ -969,7 +963,6 @@ class MilleGrillesAmqpDAO {
     if(opts.action) routingKey += '.' + opts.action
 
     const jsonMessage = JSON.stringify(message);
-    // console.debug("!!!! Emission %s\n%s", routingKey, jsonMessage)
 
     // Return promise
     return this._transmettre(routingKey, jsonMessage, null, opts);
@@ -1050,19 +1043,7 @@ class MilleGrillesAmqpDAO {
       const exchange = opts.exchange || this.exchange
 
       // Faire la publication
-      this.channel.publish(
-        exchange,
-        routingKey,
-        Buffer.from(jsonMessage),
-        properties,
-        function(err, ok) {
-          debug("Erreur MQ Callback");
-          debug(err);
-          // delete pendingResponses[correlationId];
-          reject(err);
-        }
-      )
-
+      this.channel.publish(exchange, routingKey, Buffer.from(jsonMessage), properties)
     })
     .finally(()=>{
       // Cleanup du callback

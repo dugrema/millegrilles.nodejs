@@ -176,7 +176,7 @@ class RoutingKeyManager {
       debug("Routing key pas de callback: %s", routingKey);
     }
 
-    return promise;
+    return promise
   }
 
   handleResponse(correlationId, message, opts) {
