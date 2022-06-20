@@ -215,14 +215,15 @@ class MilleGrillesPKI {
     if(!chaineForge) {
       if(!chaine) throw _err
       debug("Certificat non trouve localement, mais il est inline")
-      await this.sauvegarderMessageCertificat({chaine_pem: chaine, millegrille}, fingerprint, opts)
-      const certCache = this.cacheCertsParFingerprint[fingerprint]
+      const fingerprintLocal = await this.sauvegarderMessageCertificat({chaine_pem: chaine, millegrille}, fingerprint, opts)
+      const certCache = this.cacheCertsParFingerprint[fingerprintLocal]
       // let chaineForge = null
       if(certCache) {
         chaineForge = certCache.chaineForge
         certCache.ts = new Date().getTime()  // Touch
+      } else {
+        throw new Error("Echec preparation de certificat : %O", certCache)
       }
-      debug("Certificat inline sauvegarde sous %s\n%O", fingerprint, chaineForge)
     }
 
     return chaineForge
@@ -326,7 +327,6 @@ class MilleGrillesPKI {
       update: cipher.update,
       finalize: async () => {
         const infoChiffrage = await cipher.finalize()
-        console.debug("Info chiffrage : %O", infoChiffrage)
 
         // Chiffrer le password avec les certificats
         const commandeMaitreCles = await preparerCommandeMaitrecles(
@@ -370,9 +370,8 @@ class MilleGrillesPKI {
     else if( ! Buffer.isBuffer(iv) && ! ArrayBuffer.isView(iv) ) throw new Error(`Format IV non supporte : ${iv}`)
 
     // Dechiffrer la cle asymmetrique
-    console.debug("Dechiffrer cle asymmetrique : %O", cle)
+    debug("Dechiffrer cle asymmetrique : %O", cle)
     const cleSecrete = await this.decrypterAsymetrique(cle)
-    console.debug("Cle secrete dechiffree : %O", cleSecrete)
 
     return preparerDecipher(cleSecrete, iv)
   }
@@ -433,7 +432,7 @@ class MilleGrillesPKI {
 
         // La chaine est valide, on sauvegarde le certificat
         const certCache = {ts: new Date().getTime(), chaineForge: chaineCerts, ca: certificatCa}
-        // debug("sauvegarderMessageCertificat: Ajouter certificat au cache : %O", certCache)
+        debug("sauvegarderMessageCertificat: Ajouter certificat au cache : %O", certCache)
         this.cacheCertsParFingerprint[fingerprint] = certCache
 
         if(this.redisClient) {
