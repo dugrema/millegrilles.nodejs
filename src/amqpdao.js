@@ -756,7 +756,7 @@ class MilleGrillesAmqpDAO {
     const jsonMessage = JSON.stringify(messageFormatte);
 
     // Faire la publication
-    debugCorrelation("transmettreReponse Repondre a correlationId %s", correlationId)
+    debugCorrelation("transmettreReponse Repondre a correlationId %s sur %s", correlationId, replyTo)
 
     const properties = {
       correlationId: correlationId
