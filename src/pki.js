@@ -190,7 +190,9 @@ class MilleGrillesPKI {
     // Retourner promise
     const certificat = chaineForge[0]
 
-    return verifierMessage(message, certificat)
+    const [hachage, signature] = await verifierMessage(message, certificat)
+    const valide = hachage === true && signature === true
+    return {valide, certificat}
   }
 
   async getCertificatMessage(message, opts) {

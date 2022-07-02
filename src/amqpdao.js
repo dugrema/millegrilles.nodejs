@@ -511,11 +511,11 @@ class MilleGrillesAmqpDAO {
       // Message standard
       try {
         debug("_traiterMessage: Verifier signature message")
-        const signatureValide = await this.pki.verifierMessage(messageDict)
-        debug("_traiterMessage: Resultat verification signature %O", signatureValide)
+        const resultatVerification = await this.pki.verifierMessage(messageDict)
+        debug("_traiterMessage: Resultat verification signature %s", resultatVerification.valide)
 
-        if(signatureValide) {
-          await this.traiterMessageValide(messageDict, msg)
+        if(resultatVerification.valide) {
+          await this.traiterMessageValide(messageDict, msg, resultatVerification.certificat)
         } else {
           await this.traiterMessageInvalide(messageDict, msg)
         }
@@ -528,7 +528,7 @@ class MilleGrillesAmqpDAO {
 
   }
 
-  async traiterMessageValide(messageDict, msg) {
+  async traiterMessageValide(messageDict, msg, certificat) {
     debug("Traiter message valide")
 
     const routingKey = msg.fields.routingKey,
@@ -551,11 +551,11 @@ class MilleGrillesAmqpDAO {
             delete this.pendingResponses[correlationId]
           }
           debug("traiterMessageValide: executer callback")
-          reponse = await callbackInfo.callback(messageDict)
+          reponse = await callbackInfo.callback(messageDict, certificat)
           debug("traiterMessageValide: callback termine")
         } else {
           debug("Message recu sur Q (direct), aucun callback pour correlationId %s. Transferer au routingKeyManager.", correlationId)
-          reponse = await this.routingKeyManager.handleResponse(correlationId, msg.content, {properties, fields: msg.fields});
+          reponse = await this.routingKeyManager.handleResponse(correlationId, msg.content, {properties, fields: msg.fields, certificat});
         }
 
       } else if(routingKey) {
@@ -563,7 +563,7 @@ class MilleGrillesAmqpDAO {
         debugMessages("traiterMessageValide par routing keys:\nFields: %O\nProperties: %O\n%O",
           msg.fields, msg.properties, messageDict)
         reponse = await this.routingKeyManager.handleMessage(
-          routingKey, msg.content, {properties, fields: msg.fields});
+          routingKey, msg.content, {properties, fields: msg.fields, certificat});
 
       } else {
         console.warn("Recu message sans correlation Id ou routing key :\n%O", messageDict);
