@@ -551,7 +551,7 @@ class MilleGrillesAmqpDAO {
             delete this.pendingResponses[correlationId]
           }
           debug("traiterMessageValide: executer callback")
-          reponse = await callbackInfo.callback(messageDict, certificat)
+          reponse = await callbackInfo.callback(messageDict, null, {certificat})
           debug("traiterMessageValide: callback termine")
         } else {
           debug("Message recu sur Q (direct), aucun callback pour correlationId %s. Transferer au routingKeyManager.", correlationId)
