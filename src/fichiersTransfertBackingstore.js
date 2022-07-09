@@ -584,6 +584,73 @@ async function putAxios(url, item, position, dataBuffer) {
     }
 }
 
+/**
+ * Conserver une partie de fichier provenant d'un inputStream (e.g. req)
+ * @param {*} inputStream 
+ * @param {*} correlation 
+ * @param {*} position 
+ * @param {*} opts 
+ * @returns 
+ */
+ async function stagingStream(inputStream, correlation, opts) {
+    opts = opts || {}
+    const TAILLE_SPLIT = opts.TAILLE_SPLIT || 1 * 1024 * 1024
+
+    // Preparer directories
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
+
+    // Verifier si le repertoire existe, le creer au besoin
+    let position = 0
+    let pathFichierPut = await getPathRecevoir(pathStaging, correlation, position)
+    debug("stagingStream PUT fichier %s", pathFichierPut)
+
+    // Creer output stream
+    let writer = await fsPromises.open(pathFichierPut, 'w')
+
+    if(typeof(inputStream._read === 'function')) {
+        // Assumer stream
+        let compteur = 0
+        const promise = new Promise((resolve, reject)=>{
+            inputStream.on('data', async chunk => {
+                inputStream.pause()
+                
+                if(chunk.length + compteur > TAILLE_SPLIT) {
+                    debug("stagingStream split %s", pathFichierPut)
+                    const bytesComplete = TAILLE_SPLIT - compteur
+                    await writer.write(chunk.slice(0, bytesComplete))  // Ecrire partie du chunk
+                    await writer.close()  // Fermer le fichier
+
+                    pathFichierPut = await getPathRecevoir(pathStaging, correlation, position + bytesComplete)
+                    debug("stagingStream Ouvrir nouveau fichier %s", pathFichierPut)
+                    writer = await fsPromises.open(pathFichierPut, 'w')
+
+                    position += chunk.length       // Aller a la fin du chunk
+                    compteur = chunk.length - bytesComplete   // Reset compteur
+                    await writer.write(chunk.slice(bytesComplete))  // Continuer a la suite dans le chunk
+                } else {
+                    debug("stagingStream chunk %d dans %s", chunk.length, pathFichierPut)
+                    compteur += chunk.length
+                    position += chunk.length
+                    await writer.write(chunk)
+                }
+                
+                inputStream.resume()
+            })
+            inputStream.on('end', async () => { 
+                await writer.close()
+                resolve()
+            })
+            inputStream.on('error', err=>{ reject(err) })
+        })
+        //inputStream.pipe(writer)
+        inputStream.read()  // Lancer la lecture
+        
+        return promise
+    } else {
+        throw new Error("Type input non supporte")
+    }
+}
+
 async function stagingReady(amqpdao, transactionContenu, commandeMaitreCles, correlation, opts) {
     opts = opts || {}
     const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
@@ -607,7 +674,7 @@ module.exports = {
     middlewareReadyFichier, 
     middlewareDeleteStaging,
 
-    stagingPut, stagingReady, stagingDelete,
+    stagingPut, stagingReady, stagingDelete, stagingStream,
 
     traiterTransactions,
 }
