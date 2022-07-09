@@ -55,22 +55,22 @@ class RoutingKeyManager {
     if(!opts) opts = {}
     const {properties, fields, certificat} = opts
 
-    let callback = this.registeredRoutingKeyCallbacks[routingKey];
+    let callbackEntry = this.registeredRoutingKeyCallbacks[routingKey]
     const correlationId = properties.correlationId
-    const json_message = JSON.parse(messageContent);
+    const json_message = JSON.parse(messageContent)
 
-    debug("RoutingKeyManager Message recu rk: %s, correlationId: %s, callback present?%s", routingKey, correlationId, callback?'true':'false')
+    debug("RoutingKeyManager Message recu rk: %s, correlationId: %s, callback present?%s", routingKey, correlationId, callbackEntry?'true':'false')
 
     // Champs speciaux utilises pour le routage
     const userId = json_message.user_id || json_message.userId
 
     var promise;
-    if(callback) {
+    if(callbackEntry) {
       let opts = {
         properties,
         certificat,
       }
-      promise = callback(routingKey, json_message, opts);
+      promise = callbackEntry.callback(routingKey, json_message, opts);
       // if(promise) {
       //   debug("Promise recue");
       // } else {
@@ -206,7 +206,7 @@ class RoutingKeyManager {
 
     for(var routingKey_idx in routingKeys) {
       let routingKeyName = routingKeys[routingKey_idx]
-      this.registeredRoutingKeyCallbacks[routingKeyName] = callback
+      this.registeredRoutingKeyCallbacks[routingKeyName] = {callback, ...opts}
 
       // Ajouter la routing key
       if(qCustom) {

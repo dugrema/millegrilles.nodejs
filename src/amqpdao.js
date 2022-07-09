@@ -432,6 +432,8 @@ class MilleGrillesAmqpDAO {
     let consumerTag = infoQ.tag
     infoQ.tag = null
 
+    debug("_traiterMessageCustom Traiter %O\ninfoQ: %O", msg, infoQ)
+
     if(consumerTag) {
 
       try {
@@ -441,6 +443,7 @@ class MilleGrillesAmqpDAO {
         while(msg) {
           try {
             // debug("Debut traiter message operation longue");
+            if(infoQ.preAck) this.channel.ack(msg);  // Operation qui peut prendre plus de 30 minutes (ACK timeout)
             await this._traiterMessage(msg)
             // debug("Fin traitement message operation longue")
           } catch (err) {
@@ -448,7 +451,7 @@ class MilleGrillesAmqpDAO {
             // avec ACK dans finally pour eviter de bloquer.
             console.error(`${new Date()} _traiterMessageCustom : Erreur traitement message : ${err}\n${msg}`)
           } finally {
-            this.channel.ack(msg);  // Change pour auto-ack
+            if(!infoQ.preAck) this.channel.ack(msg)
           }
 
           // Tenter d'aller chercher un autre message
