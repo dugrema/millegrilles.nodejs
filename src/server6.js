@@ -657,6 +657,7 @@ function transferHeaders(req, res, next) {
 function verifierAuthentification(req, res, next) {
   const session = req.session
   if( ! (session.nomUsager && session.userId) ) {
+    debug("verifierAuthentification Acces refuse (nomUsager et userId null)")
     debugConnexions("Nom usager/userId ne sont pas inclus dans les req.headers : %O", req.headers)
     res.append('Access-Control-Allow-Origin', '*')  // S'assurer que le message est recu cross-origin
     return res.sendStatus(403)
