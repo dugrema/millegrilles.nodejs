@@ -155,6 +155,7 @@ async function server6(app, configurerEvenements, opts) {
     req.amqpdao = amqpdao
     req.comptesUsagersDao = comptesUsagersDao
     req.redisClient = redisClient
+    req.redisClientSession = redisClientSession
     next()
   })
 
