@@ -165,11 +165,12 @@ async function server6(app, configurerEvenements, opts) {
   // Configurer socket.io
   const socketIo = _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts)
 
-  // Injecter DAOS pour socketIo
+  // Injecter DAOs pour socketIo
   socketIo.use((socket, next)=>{
     socket.amqpdao = amqpdao
     socket.comptesUsagersDao = comptesUsagersDao
     socket.comptesUsagers = comptesUsagersDao
+    socket.redisClient = redisClient
 
     if(opts.verifierAutorisation) {
       socket.verifierAutorisation = opts.verifierAutorisation
