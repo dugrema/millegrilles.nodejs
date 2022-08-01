@@ -266,6 +266,7 @@ async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
         // contenu.corrompre = true
         try { await validerMessage(pki, contenu) } 
         catch(err) {
+            debug("readyStaging ERROR readyStaging Message cles invalide")
             err.code = CODE_CLES_SIGNATURE_INVALIDE
             throw err
         }
@@ -282,6 +283,7 @@ async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
         // contenu.corrompre = true
         try { await validerMessage(pki, contenu) } 
         catch(err) {
+            debug("readyStaging ERROR readyStaging Message transaction invalide")
             err.code = CODE_TRANSACTION_SIGNATURE_INVALIDE
             throw err
         }
@@ -295,6 +297,7 @@ async function readyStaging(amqpdao, pathStaging, item, hachage, opts) {
     try {
         await verifierFichier(hachage, pathUploadItem, opts)
     } catch(err) {
+        debug("readyStaging ERROR Fichier hachage mismatch")
         err.code = CODE_HACHAGE_MISMATCH
         throw err
     }
