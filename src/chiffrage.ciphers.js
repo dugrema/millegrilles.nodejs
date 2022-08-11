@@ -293,22 +293,26 @@ async function decryptStreamXChacha20Poly1305(header, key, ciphertext, opts) {
 
 /* ----- Fin section stream XChacha20Poly1305 ----- */ 
 
+const chacha20poly1305Algorithm = {
+    encrypt: encryptChacha20Poly1305,
+    decrypt: decryptChacha20Poly1305,
+    getCipher: creerCipherChacha20Poly1305,
+    getDecipher: creerDecipherChacha20Poly1305,
+    nonceSize: 12,
+}
+const streamXChacha20poly1305Algorithm = {
+    encrypt: encryptStreamXChacha20Poly1305,
+    decrypt: decryptStreamXChacha20Poly1305,
+    getCipher: creerStreamCipherXChacha20Poly1305,
+    getDecipher: creerStreamDecipherXChacha20Poly1305,
+    messageSize: MESSAGE_SIZE,
+}
+
 const ciphers = {
-    // Nodejs Crypto
-    'chacha20-poly1305': {
-        encrypt: encryptChacha20Poly1305,
-        decrypt: decryptChacha20Poly1305,
-        getCipher: creerCipherChacha20Poly1305,
-        getDecipher: creerDecipherChacha20Poly1305,
-        nonceSize: 12,
-    },
-    'stream-xchacha20poly1305': {
-        encrypt: encryptStreamXChacha20Poly1305,
-        decrypt: decryptStreamXChacha20Poly1305,
-        getCipher: creerStreamCipherXChacha20Poly1305,
-        getDecipher: creerStreamDecipherXChacha20Poly1305,
-        messageSize: MESSAGE_SIZE,
-    }
+    'chacha20-poly1305': chacha20poly1305Algorithm,
+    'stream-xchacha20poly1305': streamXChacha20poly1305Algorithm,
+    'mgs3': chacha20poly1305Algorithm,
+    'mgs4': streamXChacha20poly1305Algorithm,
 }
 
 chiffrageCiphers.setCiphers(ciphers)
