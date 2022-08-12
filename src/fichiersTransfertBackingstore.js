@@ -15,7 +15,8 @@ const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
       FICHIER_TRANSACTION_CLES = 'transactionCles.json',
       FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
       FICHIER_ETAT = 'etat.json',
-      INTERVALLE_PUT_CONSIGNATION = 900_000
+      INTERVALLE_PUT_CONSIGNATION = 900_000,
+      CONST_TAILLE_SPLIT_MAX_DEFAULT = 5 * 1024 * 1024
 
 const CODE_HACHAGE_MISMATCH = 1,
       CODE_CLES_SIGNATURE_INVALIDE = 2,
@@ -597,7 +598,7 @@ async function putAxios(url, item, position, dataBuffer) {
  */
  async function stagingStream(inputStream, correlation, opts) {
     opts = opts || {}
-    const TAILLE_SPLIT = opts.TAILLE_SPLIT || 1 * 1024 * 1024
+    const TAILLE_SPLIT = opts.TAILLE_SPLIT || CONST_TAILLE_SPLIT_MAX_DEFAULT
 
     // Preparer directories
     const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
