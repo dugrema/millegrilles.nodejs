@@ -26,7 +26,7 @@ async function creerCipherChacha20Poly1305(key, nonce, opts) {
             cipher.final()
             tag = cipher.getAuthTag()
             hachage = await hacheur.finalize()
-            return {tag, hachage, taille}
+            return {rawTag: tag, tag: base64.encode(tag), hachage, taille}
         },
         tag: () => tag,
         hachage: () => hachage,
@@ -55,8 +55,8 @@ async function creerDecipherChacha20Poly1305(key, nonce) {
 async function encryptChacha20Poly1305(key, nonce, data, opts) {
     const cipher = await creerCipherChacha20Poly1305(key, nonce, opts)
     const ciphertext = await cipher.update(data)
-    const {tag, hachage} = await cipher.finalize()
-    return {ciphertext, tag, hachage}
+    const {tag, rawTag, hachage} = await cipher.finalize()
+    return {ciphertext, tag, rawTag, hachage}
 }
 
 /**
@@ -83,15 +83,22 @@ const OVERHEAD_MESSAGE = 17,
       DECIPHER_MESSAGE_SIZE = 64 * 1024,
       MESSAGE_SIZE = DECIPHER_MESSAGE_SIZE - OVERHEAD_MESSAGE
 
-async function creerStreamCipherXChacha20Poly1305(key, opts) {
+async function creerStreamCipherXChacha20Poly1305(opts) {
     opts = opts || {}
     const digestAlgo = opts.digestAlgo || 'blake2b-512'
     const messageBuffer = new Uint8Array(MESSAGE_SIZE)
     let positionBuffer = 0,
         tailleOutput = 0
 
+    let { key } = opts
+    if(key) {
+        if(typeof(key) === 'string') key = base64.decode(key)
+    } else {
+        key = getRandom(32)
+    }
+
     // Preparer libsodium, hachage (WASM)
-    const hacheur = new Hacheur({hashingCode: digestAlgo})
+    const hacheur = new hachageLib.Hacheur({hashingCode: digestAlgo})
     await hacheur.ready
     await _sodium.ready
     const sodium = _sodium
@@ -146,24 +153,26 @@ async function creerStreamCipherXChacha20Poly1305(key, opts) {
             tailleOutput += ciphertextMessage.length
             hachage = await hacheur.finalize()
 
-            return {header, hachage, taille: tailleOutput, ciphertext: ciphertextMessage}
+            return {key, header, hachage, taille: tailleOutput, format: 'mgs4', ciphertext: ciphertextMessage}
         },
         header: () => header,
         hachage: () => hachage,
+        key: () => key,
+        format: () => 'mgs4'
     }
 }
 
-async function creerStreamDecipherXChacha20Poly1305(headerStr, keyStr) {
+async function creerStreamDecipherXChacha20Poly1305(key, header) {
     const messageBuffer = new Uint8Array(DECIPHER_MESSAGE_SIZE)
     let positionBuffer = 0,
         tailleOutput = 0
 
+    if(typeof(key)==='string') key = base64.decode(key)
+    if(typeof(header)==='string') header = base64.decode(header)
+
     // Preparer libsodium (WASM)
     await _sodium.ready
     const sodium = _sodium
-
-    const key = typeof(keyStr)==='string'?base64.decode(keyStr):keyStr,
-          header = typeof(headerStr)==='string'?base64.decode(headerStr):headerStr
 
     // Preparer decipher
     const state_in = sodium.crypto_secretstream_xchacha20poly1305_init_pull(header, key)
@@ -207,7 +216,7 @@ async function creerStreamDecipherXChacha20Poly1305(headerStr, keyStr) {
             if(positionBuffer) {
                 const resultat = sodium.crypto_secretstream_xchacha20poly1305_pull(state_in, messageBuffer.slice(0,positionBuffer))
                 if(resultat === false) throw new DecipherError('Erreur dechiffrage')
-                const {message, tag} = resultat
+                const {message} = resultat
                 decipheredMessage = message
                 tailleOutput += decipheredMessage.length
             }
@@ -223,8 +232,8 @@ async function creerStreamDecipherXChacha20Poly1305(headerStr, keyStr) {
  * @param {*} data 
  * @param {*} opts 
  */
-async function encryptStreamXChacha20Poly1305(key, data, opts) {
-    const cipher = await creerStreamCipherXChacha20Poly1305(key, opts)
+async function encryptStreamXChacha20Poly1305(data, opts) {
+    const cipher = await creerStreamCipherXChacha20Poly1305(opts)
 
     // Creer buffer pour resultat
     const tailleBuffer = (Math.ceil(data.length / MESSAGE_SIZE) + 1) * DECIPHER_MESSAGE_SIZE
@@ -242,7 +251,7 @@ async function encryptStreamXChacha20Poly1305(key, data, opts) {
 
         positionLecture += tailleLecture
     }
-    let {ciphertext, header, hachage} = await cipher.finalize()
+    let {ciphertext, header, hachage, key, format} = await cipher.finalize()
 
     if(ciphertext) {
         // Concatener
@@ -250,7 +259,7 @@ async function encryptStreamXChacha20Poly1305(key, data, opts) {
         positionEcriture += ciphertext.length
     }
 
-    return {ciphertext: buffer.slice(0, positionEcriture), header, hachage}
+    return {key, ciphertext: buffer.slice(0, positionEcriture), header, hachage, format}
 }
 
 /**
@@ -261,8 +270,8 @@ async function encryptStreamXChacha20Poly1305(key, data, opts) {
  * @param {*} tag 
  * @param {*} opts 
  */
-async function decryptStreamXChacha20Poly1305(header, key, ciphertext, opts) {
-    const decipher = await creerStreamDecipherXChacha20Poly1305(header, key, opts)
+async function decryptStreamXChacha20Poly1305(key, header, ciphertext) {
+    const decipher = await creerStreamDecipherXChacha20Poly1305(key, header)
 
     // Creer buffer pour resultat
     const tailleBuffer = Math.ceil(ciphertext.length / DECIPHER_MESSAGE_SIZE) * MESSAGE_SIZE
@@ -293,26 +302,43 @@ async function decryptStreamXChacha20Poly1305(header, key, ciphertext, opts) {
 
 /* ----- Fin section stream XChacha20Poly1305 ----- */ 
 
-const chacha20poly1305Algorithm = {
-    encrypt: encryptChacha20Poly1305,
-    decrypt: decryptChacha20Poly1305,
-    getCipher: creerCipherChacha20Poly1305,
-    getDecipher: creerDecipherChacha20Poly1305,
-    nonceSize: 12,
-}
-const streamXChacha20poly1305Algorithm = {
+// const chacha20poly1305Algorithm = {
+//     encrypt: (data, opts) => encryptChacha20Poly1305,
+//     decrypt: (key, data, opts) => decryptChacha20Poly1305(key, opts.nonce||opts.iv, data, opts.tag, opts),
+//     getCipher: creerCipherChacha20Poly1305,
+//     getDecipher: (key, opts) => creerDecipherChacha20Poly1305(key, opts.nonce||opts.iv),
+//     nonceSize: 12,
+// }
+// const streamXChacha20poly1305Algorithm = {
+//     encrypt: encryptStreamXChacha20Poly1305,
+//     decrypt: decryptStreamXChacha20Poly1305,
+//     getCipher: creerStreamCipherXChacha20Poly1305,
+//     getDecipher: creerStreamDecipherXChacha20Poly1305,
+//     messageSize: MESSAGE_SIZE,
+// }
+
+const streamXchacha20poly1305Algorithm = {
     encrypt: encryptStreamXChacha20Poly1305,
-    decrypt: decryptStreamXChacha20Poly1305,
+    decrypt: (key, data, opts) => decryptStreamXChacha20Poly1305(key, opts.header, data),
     getCipher: creerStreamCipherXChacha20Poly1305,
-    getDecipher: creerStreamDecipherXChacha20Poly1305,
+    getDecipher: (key, opts) => creerStreamDecipherXChacha20Poly1305(key, opts.header),
     messageSize: MESSAGE_SIZE,
+    stream: true,
+}
+
+const chacha20poly1305Algorithm = {
+    encrypt: (data, opts) => encryptChacha20Poly1305(opts.key, opts.iv||opts.nonce, data, opts),
+    decrypt: (key, data, opts) => decryptChacha20Poly1305(key, opts.nonce||opts.iv, data, opts.tag),
+    getCipher: (opts) => creerCipherChacha20Poly1305(opts.key, opts.nonce||opts.iv, opts),
+    getDecipher: (key, opts) => creerDecipherChacha20Poly1305(key, opts.nonce||opts.iv),
+    stream: true,
 }
 
 const ciphers = {
     'chacha20-poly1305': chacha20poly1305Algorithm,
-    'stream-xchacha20poly1305': streamXChacha20poly1305Algorithm,
+    'stream-xchacha20poly1305': streamXchacha20poly1305Algorithm,
     'mgs3': chacha20poly1305Algorithm,
-    'mgs4': streamXChacha20poly1305Algorithm,
+    'mgs4': streamXchacha20poly1305Algorithm,
 }
 
 chiffrageCiphers.setCiphers(ciphers)

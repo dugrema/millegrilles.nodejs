@@ -1,21 +1,6 @@
 const debug = require('debug')('millegrilles:common:pki')
 
-// const debug = require('debug')('millegrilles:common:pki')
-// const crypto = require('crypto')
-// const { StringDecoder } = require('string_decoder')
 const { base64 } = require('multiformats/bases/base64')
-// const {
-//   forgecommon, formatteurMessage, validateurMessage, encoderIdmg,
-//   hacherCertificat, // hachage, 
-//   // Chiffrage
-//   //creerCipher, 
-//   preparerCipher,
-//   // dechiffrerCleSecreteForge, 
-//   preparerCommandeMaitrecles,
-//   chargerPemClePriveeEd25519, exporterPemClePriveeEd25519,
-//   ed25519,
-//   preparerDecipher,
-// } = require('@dugrema/millegrilles.utiljs')
 const { pki } = require('@dugrema/node-forge')
 
 const forgecommon = require('@dugrema/millegrilles.utiljs/src/forgecommon')
@@ -27,22 +12,6 @@ const { dechiffrerCle } = require('@dugrema/millegrilles.utiljs/src/chiffrage.ed
 
 const { hacherCertificat } = require('./hachage')
 const { preparerCipher, preparerCommandeMaitrecles, preparerDecipher } = require('./chiffrage')
-
-// import {splitPEMCerts, FormatteurMessage} from './formatteurMessage'
-// import { verifierMessage } from './validateurMessage'
-// import { hacherCertificat } from './hachage'
-// import { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } from './chiffrage'
-
-// const { dechiffrerCle } = ed25519
-// const {splitPEMCerts, FormatteurMessageEd25519} = formatteurMessage
-// const { verifierMessage } = validateurMessage
-// const { hacherCertificat } = hachage
-// const { creerCipher, dechiffrerCleSecreteForge, preparerCommandeMaitrecles } = chiffrage
-
-// const REPERTOIRE_CERTS_TMP = tmp.dirSync().name
-// debug("Repertoire temporaire certs : %s", REPERTOIRE_CERTS_TMP);
-
-// const debug = debugLib('millegrilles:common:pki')
 
 const PEM_CERT_DEBUT = '-----BEGIN CERTIFICATE-----'
 const PEM_CERT_FIN = '-----END CERTIFICATE-----'
@@ -288,54 +257,24 @@ class MilleGrillesPKI {
     return dechiffrerCle(contenuSecret, this.cleForge.privateKeyBytes)
   }
 
-  // async dechiffrerContenuAsymetric(cleChiffree, iv, tag, contenuChiffre) {
-  //   debug("dechiffrerContenuAsymetric: Cle secrete: %s\nIV: %s, Tag: %s\ncontenuChiffre: %O", cleSecrete, iv, tag, contenuChiffre)
-  //   const cleSecreteDechiffree = await this.decrypterAsymetrique(cleChiffree)
-  //   // debug("Cle secrete dechiffree : %O", cleSecreteDechiffree)
-
-  //   // const cleSecreteDechiffreeBytes = Buffer.from(cleSecreteDechiffree, 'hex')
-  //   // const cleSecreteDechiffreeBytes = Buffer.from(cleSecreteDechiffree)
-  //   const cleSecreteDechiffreeBytes = str2ab(cleSecreteDechiffree)
-
-  //   const ivBytes = Buffer.from(iv, 'base64')
-  //   const bytesChiffreSymmetrique = Buffer.from(contenuChiffre.secret_chiffre || contenuChiffre, 'base64')
-
-  //   debug("Creer decipher secretKey: " + cleSecreteDechiffreeBytes.toString('base64') + ", iv: " + ivBytes.toString('base64'));
-  //   var decipher = crypto.createDecipheriv('aes-256-cbc', cleSecreteDechiffreeBytes, ivBytes);
-
-  //   // console.debug("Decrypter " + contenuCrypte.toString('base64'));
-  //   const decoder = new StringDecoder('utf8');
-  //   let contenuDecrypte = decipher.update(bytesChiffreSymmetrique, 'base64')
-  //   let ivDechiffre = contenuDecrypte.slice(0, 16)
-  //   debug("IV Dechiffre : %O\nIV recu: %O", ivDechiffre, ivBytes)
-
-  //   // Comparer le IV pour s'assurer que le dechiffrage est correct
-  //   if( ! forgecommon.comparerArraybuffers(ivDechiffre, ivBytes) ) {
-  //     throw new Error("Dechiffrage - IV ne correspond pas")
-  //   }
-
-  //   var contenuDechiffreString = decoder.write(contenuDecrypte.slice(16))
-  //   contenuDechiffreString += decoder.write(decipher.final())
-
-  //   return contenuDechiffreString
-  // }
-
   async creerCipherChiffrageAsymmetrique(certificatsPem, domaine, identificateurs_document, opts) {
     const publicKeyBytesMillegrille = this.caForge.publicKey.publicKeyBytes
     const cipherInst = await preparerCipher({clePubliqueEd25519: publicKeyBytesMillegrille}),
           cipher = cipherInst.cipher
 
+    console.debug("CipherInst : %O", cipherInst)
+
     const cipherWrapper = {
       update: cipher.update,
       finalize: async () => {
         const infoChiffrage = await cipher.finalize()
+        console.debug("InfoChiffrag : %O", infoChiffrage)
 
         // Chiffrer le password avec les certificats
         const commandeMaitreCles = await preparerCommandeMaitrecles(
-          certificatsPem,
-          cipherInst.secretKey, domaine, infoChiffrage.hachage, cipherInst.iv, infoChiffrage.tag,
-          identificateurs_document,
-          opts
+          certificatsPem, cipherInst.secretKey, domaine, 
+          infoChiffrage.hachage, identificateurs_document,
+          {...opts, ...infoChiffrage}
         )
 
         // Remplacer cle chiffree de millegrille par peerPublic (secretChiffre)
