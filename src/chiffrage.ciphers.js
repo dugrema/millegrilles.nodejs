@@ -33,11 +33,16 @@ async function creerCipherChacha20Poly1305(key, nonce, opts) {
     }
 }
 
-async function creerDecipherChacha20Poly1305(key, nonce) {
+async function creerDecipherChacha20Poly1305(key, nonce, opts) {
+    opts = opts || {}
+
+    if(typeof(nonce) === 'string') nonce = base64.decode(nonce)
+
     const decipher = crypto.createDecipheriv('chacha20-poly1305', key, nonce, { authTagLength: 16 })
     return {
         update: data => decipher.update(data),
         finalize: tag => {
+            if(!tag) tag = opts.tag  // Utiliser tag en params
             if(typeof(tag)==='string') tag = base64.decode(tag)
             decipher.setAuthTag(tag);
             return decipher.final()
@@ -319,18 +324,18 @@ async function decryptStreamXChacha20Poly1305(key, header, ciphertext) {
 
 const streamXchacha20poly1305Algorithm = {
     encrypt: encryptStreamXChacha20Poly1305,
-    decrypt: (key, data, opts) => decryptStreamXChacha20Poly1305(key, opts.header, data),
+    decrypt: (key, data, opts) => decryptStreamXChacha20Poly1305(key, opts.header, data, opts),
     getCipher: creerStreamCipherXChacha20Poly1305,
-    getDecipher: (key, opts) => creerStreamDecipherXChacha20Poly1305(key, opts.header),
+    getDecipher: (key, opts) => creerStreamDecipherXChacha20Poly1305(key, opts.header, opts),
     messageSize: MESSAGE_SIZE,
     stream: true,
 }
 
 const chacha20poly1305Algorithm = {
     encrypt: (data, opts) => encryptChacha20Poly1305(opts.key, opts.iv||opts.nonce, data, opts),
-    decrypt: (key, data, opts) => decryptChacha20Poly1305(key, opts.nonce||opts.iv, data, opts.tag),
+    decrypt: (key, data, opts) => decryptChacha20Poly1305(key, opts.nonce||opts.iv, data, opts.tag, opts),
     getCipher: (opts) => creerCipherChacha20Poly1305(opts.key, opts.nonce||opts.iv, opts),
-    getDecipher: (key, opts) => creerDecipherChacha20Poly1305(key, opts.nonce||opts.iv),
+    getDecipher: (key, opts) => creerDecipherChacha20Poly1305(key, opts.nonce||opts.iv, opts),
     stream: true,
 }
 
