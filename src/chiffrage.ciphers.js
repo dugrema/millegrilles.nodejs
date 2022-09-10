@@ -99,7 +99,8 @@ async function creerStreamCipherXChacha20Poly1305(opts) {
     if(key) {
         if(typeof(key) === 'string') key = base64.decode(key)
     } else {
-        key = getRandom(32)
+        // key = getRandom(32)
+        throw new Error("param key est manquant")
     }
 
     // Preparer libsodium, hachage (WASM)

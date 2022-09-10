@@ -181,7 +181,7 @@ function middlewareReadyFichier(amqpdao, opts) {
       
         const commandeMaitreCles = informationFichier.cles
         const transactionContenu = informationFichier.transaction
-        const hachage = commandeMaitreCles?commandeMaitreCles.hachage_bytes:correlation
+        const hachage = informationFichier.etat.hachage
         
         const optsReady = {...opts, cles: commandeMaitreCles, transaction: transactionContenu}
 
@@ -655,12 +655,17 @@ async function putAxios(url, item, position, dataBuffer) {
     }
 }
 
-async function stagingReady(amqpdao, transactionContenu, commandeMaitreCles, correlation, opts) {
+async function stagingReady(amqpdao, hachage, transactionContenu, correlation, opts) {
     opts = opts || {}
     const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
-    const hachage = commandeMaitreCles.hachage_bytes
+    
+    const commandeMaitreCles = opts.commandeMaitreCles
 
-    const optsReady = {...opts, cles: commandeMaitreCles, transaction: transactionContenu}
+    const optsReady = {
+        ...opts, 
+        cles: commandeMaitreCles, 
+        transaction: transactionContenu
+    }
 
     await readyStaging(amqpdao, pathStaging, correlation, hachage, optsReady)
 }
