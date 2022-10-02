@@ -628,21 +628,8 @@ function getInfoIdmg(socket, params, cb, opts) {
 
 async function getCertificatsMaitredescles(socket, cb) {
   debugConnexions("server6.getCertificatsMaitredescles")
-
   const amqpdao = socket.amqpdao
-  const domaineAction = 'MaitreDesCles.certMaitreDesCles'
-  const params = {}
-
-  try {
-    debugConnexions("Requete certificats maitredescles")
-    const reponse = await amqpdao.transmettreRequete(domaineAction, params, {decoder: true})
-    debugConnexions("Reponse certificats maitredescles %O", reponse)
-    return reponse
-  } catch(err) {
-    debugConnexions("Erreur traitement liste applications\n%O", err)
-    return {err}
-  }
-
+  return amqpdao.getCertificatsMaitredescles()
 }
 
 function transferHeaders(req, res, next) {

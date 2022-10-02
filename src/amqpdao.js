@@ -1243,6 +1243,13 @@ class MilleGrillesAmqpDAO {
     return true
   }
 
+  // Retourne une liste de certificats (liste de chaines [PEM]) de maitre des cles
+  // Si aucuns certificats connus, tente une requete (peut generer timeout)
+  // Returns : [[cert0, certS], [cert1, certS], ...]
+  getCertificatsMaitredescles() {
+    return this.certificatManager.demanderCertificatMaitreDesCles()
+  }
+
 }
 
 module.exports = { MilleGrillesAmqpDAO }
