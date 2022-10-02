@@ -1,6 +1,7 @@
 const debug = require('debug')('millegrilles:common:certificatmanager')
 // import { pki } from '@dugrema/node-forge'
-// const { validateurMessage } = require('@dugrema/millegrilles.utiljs')
+const { hacherCertificat } = require('./hachage')
+const forgecommon = require('@dugrema/millegrilles.utiljs/src/forgecommon')
 
 const { pki } = require('@dugrema/node-forge')
 
@@ -23,12 +24,34 @@ class GestionnaireCertificatMessages {
     this.attenteCertificat = {}
 
     this.intervalEntretien = setInterval(_=>{this.entretien()}, 30000)
+
+    this.cacheMaitredescles = {}
   }
 
   entretien() {
+    this.cleanupAttenteCerticats()
+    this.cleanupCertificatsMaitredescles()
+  }
+
+  cleanupCertificatsMaitredescles() {
+    const expire = new Date().getTime() - 10 * 60_000;
+    for(const fingerprint of Object.keys(this.cacheMaitredescles)) {
+      const value = this.cacheMaitredescles[fingerprint]
+      const timeActivite = value.dateActivite.getTime()
+      if(timeActivite < expire) {
+        debug("cleanupCertificatsMaitredescles Expirer certificat maitre des cles %s", fingerprint)
+        delete this.cacheMaitredescles[fingerprint]
+      } else {
+        debug("cleanupCertificatsMaitredescles Certificat maitre des cle %s OK", fingerprint)
+      }
+    }
+  }
+
+  cleanupAttenteCerticats() {
     const attenteCertificatUpdate = {},
           tempsCourant = new Date().getTime()
 
+          // Cleanup attente certificats
     for(let fingerprint in this.attenteCertificat) {
       var listeCertificats = this.attenteCertificat[fingerprint]
 
@@ -87,6 +110,31 @@ class GestionnaireCertificatMessages {
         }
       })
       delete this.attenteCertificat[fingerprint]
+    }
+
+  }
+
+  async recevoirCertificatMaitredescles(messageDict) {
+    debug("Sauvegarder message certificat maitre des cles %s", messageDict)
+    // Valider le certificat
+    const pem = messageDict['_certificat']
+    const { valide, certificat } = await this.pki.verifierMessage(messageDict)
+
+    if(valide) {
+      const fingerprint = await hacherCertificat(certificat)
+      debug("Certificat %s valide? %O, cert forge %O", fingerprint, valide, certificat)
+      const extensions = forgecommon.extraireExtensionsMillegrille(certificat)
+      debug("Extensions certificat : ", extensions)
+      const roles = extensions.roles || []
+      if(roles.includes('maitredescles')) {
+        debug("Certificat maitre des cles confirme, on sauvegarde dans le cache")
+        let entree = this.cacheMaitredescles[fingerprint]
+        if(!entree) {
+          entree = {fingerprint, pem, certificat, extensions}
+          this.cacheMaitredescles[fingerprint] = entree
+        }
+        entree.dateActivite = new Date()  // Met a jour derniere date activite
+      }
     }
 
   }

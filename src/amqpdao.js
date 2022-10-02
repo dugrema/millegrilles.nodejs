@@ -12,6 +12,7 @@ const GestionnaireCertificatMessages = require('./certificatManager')
 const L1PUBLIC = '1.public'
 const ROUTING_CERTIFICAT = 'requete.certificat'
 const MG_ROUTING_EMETTRE_CERTIFICAT = 'evenement.certificat.infoCertificat'
+const MG_ROUTING_CERTIFICAT_MAITREDECLES = 'evenement.MaitreDesCles.certMaitreDesCles'
 const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
 // const routingKeyNouvelleTransaction = 'transaction.nouvelle'
 const EXPIRATION_MESSAGE_DEFAUT = 15 * 60000  // 15 minutes en millisec
@@ -180,7 +181,11 @@ class MilleGrillesAmqpDAO {
         this.routingKeyCertificat = ROUTING_CERTIFICAT + '.' + fingerprintSha256B64;
         console.info(new Date() + " Enregistrer routing key: %s", this.routingKeyCertificat)
 
-        return this.channel.bindQueue(this.reply_q.queue, this.exchange, this.routingKeyCertificat)
+        return Promise.all([
+          this.channel.bindQueue(this.reply_q.queue, this.exchange, this.routingKeyCertificat),
+          this.channel.bindQueue(this.reply_q.queue, this.exchange, MG_ROUTING_CERTIFICAT_MAITREDECLES),
+        ])
+
       }).then(_=>{
         const niveauExchange = this.exchange.split('.').shift()
         console.info("Enregistrer listeners de certificats sur exchange %d et +", niveauExchange)
@@ -510,6 +515,9 @@ class MilleGrillesAmqpDAO {
     } else if(routingKey && routingKey === this.routingKeyCertificat) {
       // Retransmettre notre certificat
       this.certificatManager.transmettreCertificat(msg.properties)
+    } else if(routingKey && routingKey === MG_ROUTING_CERTIFICAT_MAITREDECLES) {
+      // Recevoir le certificat de maitre des cles, conserver en cache
+      this.certificatManager.recevoirCertificatMaitredescles(messageDict)
     } else {
       // Message standard
       try {
