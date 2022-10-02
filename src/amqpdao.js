@@ -307,6 +307,11 @@ class MilleGrillesAmqpDAO {
       debugCorrelation("Attente reponse %s", correlationId)
     }
     this.pendingResponses = pendingReponsesUpdate
+
+    if(this.connection) {
+      this.certificatManager.demanderCertificatMaitreDesCles()
+        .catch(err=>console.error("amqpdao entretien Erreur demanderCertificatMaitreDesCles ", err))
+    }
   }
 
   scheduleReconnect(opts) {

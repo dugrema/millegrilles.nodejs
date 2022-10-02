@@ -182,32 +182,19 @@ class GestionnaireCertificatMessages {
 
   }
 
-  demanderCertificatMaitreDesCles() {
-    const tempsCourant = new Date().getTime();
-    if(this.certificatMaitreDesCles && this.certificatMaitreDesCles.expiration < tempsCourant) {
-      return new Promise((resolve, reject) => {
-        resolve(this.certificatMaitreDesCles.cert);
-      });
-    } else {
-      let objet_crypto = this;
-      // console.debug("Demander certificat MaitreDesCles");
-      var requete = {}
+  async demanderCertificatMaitreDesCles() {
+    // Verifier si on a au moins un certificat present dans le cache
+    const fingerprintsActifs = Object.keys(this.cacheMaitredescles)
+    if(fingerprintsActifs.length === 0) {
+      debug("demanderCertificatMaitreDesCles Aucun certificats MaitreDesCles connus, on fait une requete")
       var routingKey = 'MaitreDesCles.certMaitreDesCles';
-      return this.mq.transmettreRequete(routingKey, requete)
-      .then(reponse=>{
-        let messageContent = decodeURIComponent(escape(reponse.content));
-        let json_message = JSON.parse(messageContent);
-        // console.debug("Reponse cert maitre des cles");
-        // console.debug(messageContent);
-        const cert = pki.certificateFromPem(json_message.certificat);
-        objet_crypto.certificatMaitreDesCles = {
-          expiration: tempsCourant + 120000,
-          cert,
-        }
-
-        return cert;
-      })
+      const reponse = await this.mq.transmettreRequete(routingKey, {})
+      debug("demanderCertificatMaitreDesCles Reponse ", reponse)
+      await this.recevoirCertificatMaitredescles(reponse)
     }
+
+    // Retourner la liste de certificats connus
+    return Object.values(this.cacheMaitredescles).map(item=>item.pem)
   }
 
   transmettreCertificat(properties) {
