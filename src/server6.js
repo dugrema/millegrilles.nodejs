@@ -288,21 +288,23 @@ function configurerSession(hostname, redisClient, opts) {
 function _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts) {
   opts = opts || {}
 
+  // const maxAge = opts.maxAge || 3600000   // 1 heure par defaut
   var pathSocketio = opts.pathApp
-  var cookieName = 'millegrilles.io'
-  if(opts.pathApp) {
-    cookieName = opts.pathApp + '.io'
-    cookieName = cookieName.replace('/', '')
-  }
+  // var cookieName = 'millegrilles.io'
+  // if(opts.pathApp) {
+  //   cookieName = opts.pathApp + '.io'
+  //   cookieName = cookieName.replace('/', '')
+  // }
   const path = [pathSocketio, 'socket.io'].join('/')
   const ioConfig = {
     path,
-    cookie: cookieName,
     // cookie: {
     //   name: cookieName,
     //   httpOnly: true,
+    //   secure: true,
     //   sameSite: "strict",
-    //   maxAge: 86400
+    //   maxAge,
+    //   path: opts.pathApp,
     // }
   }
 
@@ -318,8 +320,8 @@ function _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements,
   amqpdao.routingKeyManager.socketio = socketIo
 
   // Ajouter middleware
-  const socketioSessionMiddleware = socketioSession(sessionMiddleware, {autoSave: true})
-  socketIo.use(socketioSessionMiddleware)
+  //const socketioSessionMiddleware = socketioSession(sessionMiddleware, {autoSave: true})
+  //socketIo.use(socketioSessionMiddleware)
   socketIo.use(socketActionsMiddleware(amqpdao, configurerEvenements, opts))
   socketIo.on('connection', (socket) => {
     debug("server6._initSocketIo: Connexion id = %s, remoteAddress = %s", socket.id, socket.conn.remoteAddress);
@@ -419,6 +421,7 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
 }
 
 async function upgradeConnexion(socket, params, cb) {
+  debug("upgradeConnexion Params : ", params)
   try {
     const session = socket.handshake.session
     debugConnexions("server6.enregistrerListenersPrives event upgrade %O / session %O", params, session)
@@ -635,10 +638,14 @@ async function getCertificatsMaitredescles(socket, cb) {
 function transferHeaders(req, res, next) {
   /* Transferer infortion des headers vers la session. */
   const session = req.session
-  if( ! session.nomUsager ) {
-    session.nomUsager = req.headers['x-user-name']
+  debug("transferHeaders Information session : %O \nHeaders : %O", session, req.headers)
+  const nomUsager = req.headers['x-user-name']
+  if( session  && nomUsager ) {
+    // Conserver / override cookie
+    session.nomUsager = nomUsager
     session.userId = req.headers['x-user-id']
     session.authScore = req.headers['x-user-authscore']
+    session.save()
   }
   next()
 }

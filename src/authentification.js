@@ -373,7 +373,7 @@ async function veriferUpgradeProtegerApp(socket, params, opts) {
 
       // Verifier si on a des conditions supplementaires (e.g. delegations)
       if(socket.verifierAutorisation) {
-        debug("Verifier autorisation usager %s / ext: %O", nomUsager, extensions)
+        debug("Verifier autorisation usager %s / ext: %O / session : %O", nomUsager, extensions, session)
         let autorise = await socket.verifierAutorisation(socket, '3.protege', resultat.certificat)
         if(autorise) {
           debug("Activer mode protege pour socket %s de l'usager %s", socket.id, nomUsager)
