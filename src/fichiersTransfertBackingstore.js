@@ -181,7 +181,8 @@ function middlewareReadyFichier(amqpdao, opts) {
       
         const commandeMaitreCles = informationFichier.cles
         const transactionContenu = informationFichier.transaction
-        const hachage = informationFichier.etat.hachage
+        const etat = informationFichier.etat || {},
+              hachage = etat.hachage || correlation
         
         const optsReady = {...opts, cles: commandeMaitreCles, transaction: transactionContenu}
 
