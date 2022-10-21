@@ -61,16 +61,25 @@ async function server6(app, configurerEvenements, opts) {
         portEnv = process.env.PORT,
         publicUrl = process.env.PUBLIC_URL
   const redisHost = process.env.MG_REDIS_HOST || 'redis',
-        redisPortStr = process.env.MG_REDIS_PORT || '6379'
+        redisPortStr = process.env.MG_REDIS_PORT || '6379',
+        activerSocketIoSession = opts.socketIoSession?true:false
   
   const exchange = opts.exchange || process.env.MG_EXCHANGE_DEFAUT || '3.protege'
   console.info("****************")
 
   // Creer un URL bien forme pour le host, permet de valider le hostname/port
-  const urlHost = publicUrl?new URL(publicUrl):new URL(`https://${hostnameEnv}:${portEnv}`)
+  let hostname = null, port = 443, urlHost = null
+  if(publicUrl) {
+    urlHost = new URL(publicUrl)
+  } else if(hostnameEnv) {
+    urlHost = new URL(`https://${hostnameEnv}`)
+  }
   if(portEnv) urlHost.port = Number(portEnv)
-  const hostname = urlHost.hostname,
-        port = urlHost.port || 443
+  port = urlHost.port || 443
+  // const urlHost = publicUrl?new URL(publicUrl):new URL(`https://${hostnameEnv}:${portEnv}`)
+  // if(portEnv) urlHost.port = Number(portEnv)
+  // const hostname = urlHost.hostname,
+  //       port = urlHost.port || 443
 
   debug("server6.initialiser Utilisation hostname %s, exchange %s", hostname, exchange)
 
@@ -163,7 +172,8 @@ async function server6(app, configurerEvenements, opts) {
   const server = _initServer(app, hostname, credentials)
 
   // Configurer socket.io
-  const socketIo = _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements, opts)
+  const sessionMiddlewareSocketio = activerSocketIoSession?sessionMiddleware:null
+  const socketIo = _initSocketIo(server, amqpdao, sessionMiddlewareSocketio, configurerEvenements, opts)
 
   // Injecter DAOs pour socketIo
   socketIo.use((socket, next)=>{
@@ -224,25 +234,25 @@ function configurerSession(hostname, redisClient, opts) {
   debug("Cookie name : %O, host %s", cookieName, hostname)
   const maxAge = opts.maxAge || 3600000   // 1 heure par defaut
 
-  // Configuration pour le domaine principal. Supporte sous-domaines.
-  const sessionConfigDomain = {
-    secret: secretCookiesPassword,
-    store: new redisStore({
-      client: redisClient,
-      ttl :  260,
-    }),
-    name: cookieName,
-    cookie: {
-      path: pathCookie,
-      domain: hostname,
-      sameSite: 'strict',
-      secure: true,
-      maxAge,
-    },
-    proxy: true,
-    resave: false,
-    saveUninitialized: true,  // Requis pour s'assurer de creer le cookie avant ouverture socket.io (call /verifier)
-  }
+  // // Configuration pour le domaine principal. Supporte sous-domaines.
+  // const sessionConfigDomain = {
+  //   secret: secretCookiesPassword,
+  //   store: new redisStore({
+  //     client: redisClient,
+  //     ttl :  260,
+  //   }),
+  //   name: cookieName,
+  //   cookie: {
+  //     path: pathCookie,
+  //     domain: hostname,
+  //     sameSite: 'strict',
+  //     secure: true,
+  //     maxAge,
+  //   },
+  //   proxy: true,
+  //   resave: false,
+  //   saveUninitialized: true,  // Requis pour s'assurer de creer le cookie avant ouverture socket.io (call /verifier)
+  // }
 
   // Configuration pour adresses IP directes ou sites .onion (TOR)
   const sessionConfigNoDomain = {
@@ -265,8 +275,8 @@ function configurerSession(hostname, redisClient, opts) {
 
   debug("Setup session hostname %s avec path : %s", hostname, pathApp)
 
-  const sessionHandlerDomain = session(sessionConfigDomain),
-        sessionHandlerNoDomain = session(sessionConfigNoDomain)
+  // const sessionHandlerDomain = session(sessionConfigDomain)
+  const sessionHandlerNoDomain = session(sessionConfigNoDomain)
 
   // Creer une fonction pour mapper le cookie en fonction du hostname client
   const middleware = (req, res, next) => {
@@ -274,10 +284,10 @@ function configurerSession(hostname, redisClient, opts) {
     debug("middleware.session http url %s", req.url)
 
     let sessionHandler = sessionHandlerNoDomain
-    if(hostnameRecu.endsWith(hostname)) {
-      // Utiliser le handler avec sous-domaines (e.g. redmine.mon.domaine.com)
-      sessionHandler = sessionHandlerDomain
-    }
+    // if(hostnameRecu.endsWith(hostname)) {
+    //   // Utiliser le handler avec sous-domaines (e.g. redmine.mon.domaine.com)
+    //   sessionHandler = sessionHandlerDomain
+    // }
 
     return sessionHandler(req, res, next)
   }
@@ -319,9 +329,14 @@ function _initSocketIo(server, amqpdao, sessionMiddleware, configurerEvenements,
   // de messages.
   amqpdao.routingKeyManager.socketio = socketIo
 
+  if(sessionMiddleware) {
+    // Ajouter middleware session
+    debug("Activer session http pour socket.io")
+    const socketioSessionMiddleware = socketioSession(sessionMiddleware, {autoSave: true})
+    socketIo.use(socketioSessionMiddleware)
+  }
+
   // Ajouter middleware
-  //const socketioSessionMiddleware = socketioSession(sessionMiddleware, {autoSave: true})
-  //socketIo.use(socketioSessionMiddleware)
   socketIo.use(socketActionsMiddleware(amqpdao, configurerEvenements, opts))
   socketIo.on('connection', (socket) => {
     debug("server6._initSocketIo: Connexion id = %s, remoteAddress = %s", socket.id, socket.conn.remoteAddress);
