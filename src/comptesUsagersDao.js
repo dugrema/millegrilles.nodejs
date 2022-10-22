@@ -271,8 +271,10 @@ class ComptesUsagers {
   }
 
   signerRecoveryCsr = async (socket, commande) => {
-    const session = socket.handshake.session,
-          nomUsager = session.nomUsager
+    // const session = socket.handshake.session
+    // console.debug("!!! \nSOCKET\n%O", socket)
+
+    const nomUsager = socket.nomUsager
 
           // Utilise la signature de l'usager pour charger son compte
     if(!commande['en-tete']) return {ok: false, err: 'Signature de message "signerRecoveryCsr" absente'}
