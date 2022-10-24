@@ -13,10 +13,10 @@ const L1PUBLIC = '1.public'
 const ROUTING_CERTIFICAT = 'requete.certificat'
 const MG_ROUTING_EMETTRE_CERTIFICAT = 'evenement.certificat.infoCertificat'
 const MG_ROUTING_CERTIFICAT_MAITREDECLES = 'evenement.MaitreDesCles.certMaitreDesCles'
-const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
+// const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
 // const routingKeyNouvelleTransaction = 'transaction.nouvelle'
 const EXPIRATION_MESSAGE_DEFAUT = 15 * 60000  // 15 minutes en millisec
-const EXPIRATION_EMIT_MESSAGE_DEFAUT = 15000  // 15 secondes
+const EXPIRATION_EMIT_MESSAGE_DEFAUT = 15_000  // 15 secondes
 
 const debug = debugLib('amqpdao')
 const debugMessages = debugLib('amqpdao:messages')
@@ -1011,7 +1011,7 @@ class MilleGrillesAmqpDAO {
     // Setup variables pour timeout
     const timeout = setTimeout(
       () => {fonction_callback(null, {'err': 'mq.multidomaine.timeout'})},
-      15000
+      EXPIRATION_EMIT_MESSAGE_DEFAUT
     )
 
     var timerResolve = null

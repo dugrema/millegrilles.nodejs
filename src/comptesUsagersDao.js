@@ -1,4 +1,4 @@
-const debug = require('debug')('millegrilles:common:dao:comptesUsagersDao')
+const debug = require('debug')('common:comptesUsagersDao')
 
 const { extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
 const { verifierChallenge } = require('./webauthn')
@@ -272,9 +272,11 @@ class ComptesUsagers {
 
   signerRecoveryCsr = async (socket, commande) => {
     // const session = socket.handshake.session
-    // console.debug("!!! \nSOCKET\n%O", socket)
+    // debug("!!! \nSOCKET\n%O", socket)
 
-    const nomUsager = socket.nomUsager
+    // Supporter session.nomUsager pour enregistrement usager maitrcomptes
+    const session = socket.handshake.session || {}
+    const nomUsager = socket.nomUsager || session.nomUsager
 
           // Utilise la signature de l'usager pour charger son compte
     if(!commande['en-tete']) return {ok: false, err: 'Signature de message "signerRecoveryCsr" absente'}
