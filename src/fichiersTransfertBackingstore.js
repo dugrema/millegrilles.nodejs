@@ -212,7 +212,11 @@ function middlewareReadyFichier(amqpdao, opts) {
             console.error("middlewareReadyFichier Erreur traitement fichier %s : %O", correlation, err)
             
             // Tenter cleanup
-            try { if(opts.clean) await opts.clean(err) } 
+            try { 
+                const pathCorrelation = path.join(pathStaging, PATH_STAGING_UPLOAD, correlation)
+                await fsPromises.rm(pathCorrelation, {recursive: true})
+                if(opts.clean) await opts.clean(err) 
+            } 
             catch(err) { console.error("middlewareReadyFichier Erreur clean %s : %O", err) }
 
             switch(err.code) {
@@ -507,10 +511,11 @@ async function transfererFichierVersConsignation(amqpdao, pathReady, item) {
         try {
             await putAxios(_urlConsignationTransfert, item, position, streamReader)
         } catch(err) {
-            const status = err.response.status
+            const response = err.response || {}
+            const status = response.status
             console.error("Erreur PUT fichier (status %d) %O", status, err)
             if(status === 409) {
-                positionUpload = err.response.headers['x-position'] || position
+                positionUpload = response.headers['x-position'] || position
             } else {
                 throw err
             }
@@ -629,6 +634,7 @@ async function putAxios(url, item, position, dataBuffer) {
  */
  async function stagingPut(inputStream, correlation, position, opts) {
     opts = opts || {}
+    if(typeof(position) === 'string') position = Number.parseInt(position)
 
     // Preparer directories
     const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
@@ -640,15 +646,20 @@ async function putAxios(url, item, position, dataBuffer) {
     const contenuStatus = await getFicherEtatUpload(pathStaging, correlation)
     debug("stagingPut Status upload courant : ", contenuStatus)
 
-    if(contenuStatus.position != position) {
+    if(contenuStatus.position != position && position !== 0) {
         debug("stagingPut Detecte resume fichier avec mauvaise position, on repond avec position courante")
         const err = new Error("stagingPut Detecte resume fichier, on repond avec position courante")
         err.response = {
             status: 409,
-            headers: {'x-position': contenuStatus.position}
-            // json: {position: contenuStatus.position}
+            headers: {'x-position': contenuStatus.position},
+            json: {position: contenuStatus.position}
         }
         throw err
+    } else if(position === 0) {
+        debug("stagingPut Reset upload %s a 0", correlation)
+        await fsPromises.rm(path.join(pathStaging, correlation, '*.work'), {force: true})
+        await fsPromises.rm(path.join(pathStaging, correlation, '*.part.work'), {force: true})
+        contenuStatus.position = 0
     }
 
     // Creer output stream
