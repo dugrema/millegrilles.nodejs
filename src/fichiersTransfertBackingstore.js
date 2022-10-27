@@ -141,6 +141,10 @@ function middlewareRecevoirFichier(opts) {
             await stagingPut(req, correlation, position, opts)
         } catch(err) {
             console.error("middlewareRecevoirFichier Erreur PUT: %O", err)
+            const response = err.response
+            if(response) {
+                return res.status(response.status).send(response.data)
+            }
             return res.sendStatus(500)
         }
 
@@ -149,7 +153,7 @@ function middlewareRecevoirFichier(opts) {
             debug("middlewareRecevoirFichier chainage next")
             next()
         } else {
-            res.sendStatus(200)
+            res.send({ok: true})
         }
     }
 }
@@ -189,7 +193,7 @@ function middlewareReadyFichier(amqpdao, opts) {
         try {
             
             await readyStaging(amqpdao, pathStaging, correlation, hachage, optsReady)
-            
+
             if(opts.clean) await opts.clean()
 
             if(opts.passthroughOnSuccess !== true) {
@@ -247,6 +251,34 @@ async function getPathRecevoir(pathStaging, item, position) {
     await fsPromises.mkdir(pathUpload, {recursive: true, mode: 0o700})
 
     return pathUploadItem
+}
+
+async function getFicherEtatUpload(pathStaging, item) {
+    const pathFichierEtat = path.join(pathStaging, PATH_STAGING_UPLOAD, item, FICHIER_ETAT)
+
+    try {
+        const contenuFichierStatusString = await fsPromises.readFile(pathFichierEtat)
+        return JSON.parse(contenuFichierStatusString)
+    } catch(err) {
+        // Fichier n'existe pas, on le genere
+        const contenu = {
+            "creation": Math.floor(new Date().getTime() / 1000),
+            "position": 0,
+        }
+        await fsPromises.writeFile(pathFichierEtat, JSON.stringify(contenu))
+        return contenu
+    }
+}
+
+async function majFichierEtatUpload(pathStaging, item, data) {
+    const pathFichierEtat = path.join(pathStaging, PATH_STAGING_UPLOAD, item, FICHIER_ETAT)
+    
+    const contenuFichierStatusString = await fsPromises.readFile(pathFichierEtat)
+    const contenuCourant = JSON.parse(contenuFichierStatusString)
+    Object.assign(contenuCourant, data)
+    await fsPromises.writeFile(pathFichierEtat, JSON.stringify(contenuCourant))
+
+    return contenuCourant
 }
 
 /**
@@ -569,17 +601,53 @@ async function putAxios(url, item, position, dataBuffer) {
     const pathFichierPut = await getPathRecevoir(pathStaging, correlation, position)
     debug("PUT fichier %s", pathFichierPut)
 
+    const contenuStatus = await getFicherEtatUpload(pathStaging, correlation)
+    debug("stagingPut Status upload courant : ", contenuStatus)
+
+    if(contenuStatus.position != position) {
+        debug("stagingPut Detecte resume fichier avec mauvaise position, on repond avec position courante")
+        const err = new Error("stagingPut Detecte resume fichier, on repond avec position courante")
+        err.response = {
+            status: 409,
+            json: {position: contenuStatus.position}
+        }
+        throw err
+    }
+
     // Creer output stream
-    const writer = fs.createWriteStream(pathFichierPut)
+    const pathFichierPutWork = pathFichierPut + '.work'
+    const writer = fs.createWriteStream(pathFichierPutWork)
 
     if(ArrayBuffer.isView(inputStream)) {
         // Traiter buffer directement
         writer.write(inputStream)
+
+        const nouvellePosition = inputStream.length + contenuStatus.position
+        await majFichierEtatUpload(pathStaging, correlation, {position: nouvellePosition})
+        await fsPromises.rename(pathFichierPutWork, pathFichierPut)
+
     } else if(typeof(inputStream._read === 'function')) {
         // Assumer stream
+        let compteurTaille = 0
         const promise = new Promise((resolve, reject)=>{
-            inputStream.on('end', ()=>{ resolve() })
-            inputStream.on('error', err=>{ reject(err) })
+            inputStream.on('data', chunk=>{ 
+                compteurTaille += chunk.length
+                return chunk
+            })
+            inputStream.on('end', ()=>{ 
+                // Resultat OK
+                const nouvellePosition = compteurTaille + contenuStatus.position
+                majFichierEtatUpload(pathStaging, correlation, {position: nouvellePosition})
+                    .then(fsPromises.rename(pathFichierPutWork, pathFichierPut))
+                    .then(()=>resolve())
+                    .catch(err=>reject(err))
+            })
+            inputStream.on('error', err=>{ 
+                fsPromises.unlink(pathFichierPut).catch(err=>{
+                    console.error("Erreur delete part incomplet ", pathFichierPut)
+                })
+                reject(err)
+            })
         })
         inputStream.pipe(writer)
         
