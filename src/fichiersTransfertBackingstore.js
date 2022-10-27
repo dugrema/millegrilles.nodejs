@@ -143,7 +143,13 @@ function middlewareRecevoirFichier(opts) {
             console.error("middlewareRecevoirFichier Erreur PUT: %O", err)
             const response = err.response
             if(response) {
-                return res.status(response.status).send(response.data)
+                if(response.headers) {
+                    for (const name of Object.keys(response.headers)) {
+                        res.setHeader(name, response.headers[name])
+                    }
+                }
+                if(response.status) res.status(response.status)
+                return res.send(response.data)
             }
             return res.sendStatus(500)
         }
@@ -472,13 +478,43 @@ async function transfererFichierVersConsignation(amqpdao, pathReady, item) {
         fileFilter: '*.part',
         depth: 1,
     })
+
+    const listeFichiersTriees = []
     for await (const entry of promiseReaddirp) {
         // debug("Entry path : %O", entry);
         const fichierPart = entry.basename
         const position = Number(fichierPart.split('.').shift())
+        listeFichiersTriees.push({...entry, position})
+    }
+
+    // Trier par position (asc)
+    listeFichiersTriees.sort((a,b)=>a.position-b.position)
+
+    let positionUpload = 0
+    for await (const fichier of listeFichiersTriees) {
+        const fullPath = fichier.fullPath,
+              position = fichier.position
+        
         debug("Traiter PUT pour item %s position %d", item, position)
-        const streamReader = fs.createReadStream(entry.fullPath)
-        await putAxios(_urlConsignationTransfert, item, position, streamReader)
+        if(positionUpload > position) {
+            debug("Skip position %d (courante connue est %d)", position, positionUpload)
+            continue
+        } else {
+            positionUpload = position
+        }
+
+        const streamReader = fs.createReadStream(fullPath)
+        try {
+            await putAxios(_urlConsignationTransfert, item, position, streamReader)
+        } catch(err) {
+            const status = err.response.status
+            console.error("Erreur PUT fichier (status %d) %O", status, err)
+            if(status === 409) {
+                positionUpload = err.response.headers['x-position'] || position
+            } else {
+                throw err
+            }
+        }
     }
 
     // Faire POST pour confirmer upload, acheminer transactions
@@ -493,7 +529,7 @@ async function transfererFichierVersConsignation(amqpdao, pathReady, item) {
 
     // Le fichier a ete transfere avec succes (aucune exception)
     // On peut supprimer le repertoire ready local
-    debug("Fichier %s transfere avec succes vers consignation", item)
+    debug("Fichier %s transfere avec succes vers consignation, reponse %O", item, reponsePost)
     fsPromises.rm(pathReadyItem, {recursive: true})
         .catch(err=>console.error("Erreur suppression repertoire %s apres consignation reussie : %O", item, err))
     
@@ -609,7 +645,8 @@ async function putAxios(url, item, position, dataBuffer) {
         const err = new Error("stagingPut Detecte resume fichier, on repond avec position courante")
         err.response = {
             status: 409,
-            json: {position: contenuStatus.position}
+            headers: {'x-position': contenuStatus.position}
+            // json: {position: contenuStatus.position}
         }
         throw err
     }
