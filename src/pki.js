@@ -193,7 +193,7 @@ class MilleGrillesPKI {
         chaineForge = certCache.chaineForge
         certCache.ts = new Date().getTime()  // Touch
       } else {
-        throw new Error("Echec preparation de certificat : %O", certCache)
+        throw new Error(`Echec preparation de certificat : ${fingerprint}`)
       }
     }
 

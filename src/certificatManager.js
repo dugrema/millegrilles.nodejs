@@ -117,24 +117,28 @@ class GestionnaireCertificatMessages {
   async recevoirCertificatMaitredescles(messageDict) {
     debug("Sauvegarder message certificat maitre des cles %s", messageDict)
     // Valider le certificat
-    const pem = messageDict['_certificat']
-    const { valide, certificat } = await this.pki.verifierMessage(messageDict)
+    try {
+      const pem = messageDict['_certificat']
+      const { valide, certificat } = await this.pki.verifierMessage(messageDict)
 
-    if(valide) {
-      const fingerprint = await hacherCertificat(certificat)
-      debug("Certificat %s valide? %O, cert forge %O", fingerprint, valide, certificat)
-      const extensions = forgecommon.extraireExtensionsMillegrille(certificat)
-      debug("Extensions certificat : ", extensions)
-      const roles = extensions.roles || []
-      if(roles.includes('maitredescles')) {
-        debug("Certificat maitre des cles confirme, on sauvegarde dans le cache")
-        let entree = this.cacheMaitredescles[fingerprint]
-        if(!entree) {
-          entree = {fingerprint, pem, certificat, extensions}
-          this.cacheMaitredescles[fingerprint] = entree
+      if(valide) {
+        const fingerprint = await hacherCertificat(certificat)
+        debug("Certificat %s valide? %O, cert forge %O", fingerprint, valide, certificat)
+        const extensions = forgecommon.extraireExtensionsMillegrille(certificat)
+        debug("Extensions certificat : ", extensions)
+        const roles = extensions.roles || []
+        if(roles.includes('maitredescles')) {
+          debug("Certificat maitre des cles confirme, on sauvegarde dans le cache")
+          let entree = this.cacheMaitredescles[fingerprint]
+          if(!entree) {
+            entree = {fingerprint, pem, certificat, extensions}
+            this.cacheMaitredescles[fingerprint] = entree
+          }
+          entree.dateActivite = new Date()  // Met a jour derniere date activite
         }
-        entree.dateActivite = new Date()  // Met a jour derniere date activite
       }
+    } catch(err) {
+      console.error("recevoirCertificatMaitredescles Erreur reception certificat maitredescles : %O", err)
     }
 
   }
