@@ -25,6 +25,8 @@ const CERT_CA_FILE = process.env.MG_MQ_CAFILE,
       KEY_CA_FILE = process.env.MG_MQ_KEYFILE,
       REDIS_PWD_FILE = process.env.MG_MQ_REDIS_PASSWD
 
+const CONST_SESSION_TIMEOUT = 3_600_000
+
 // Preparer certificats, mots de passe
 function chargerCredendials() {
   const credentials = {
@@ -232,7 +234,8 @@ function configurerSession(hostname, redisClient, opts) {
     cookieName = cookieName.replace('/', '')
   }
   debug("Cookie name : %O, host %s", cookieName, hostname)
-  const maxAge = opts.maxAge || 3600000   // 1 heure par defaut
+  const maxAge = opts.maxAge || CONST_SESSION_TIMEOUT   // 1 heure par defaut
+  const sessionTtl = Math.floor(maxAge / 1000)
 
   // // Configuration pour le domaine principal. Supporte sous-domaines.
   // const sessionConfigDomain = {
@@ -259,7 +262,7 @@ function configurerSession(hostname, redisClient, opts) {
     secret: secretCookiesPassword,
     store: new redisStore({
       client: redisClient,
-      ttl :  260,
+      ttl : sessionTtl,
     }),
     name: cookieName,
     cookie: {
