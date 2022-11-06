@@ -43,12 +43,22 @@ function configurerThreadPutFichiersConsignation(amqpdao, opts) {
     // Option pour indiquer que le URL de transfert est statique
     _disableRefreshUrlTransfert = opts.DISABLE_REFRESH || false
 
-    try{
+    try {
         const url = opts.url    
         if(url) _urlConsignationTransfert = new URL(''+url)
     } catch(err) {
         console.error("Erreur configuration URL upload : ", err)
         if(_disableRefreshUrlTransfert) throw err  // L'URL est invalide et on ne doit pas le rafraichir
+    } finally {
+        // Tenter chargement initial
+        if(!_disableRefreshUrlTransfert) {
+            chargerUrlRequete()
+                .then(urlTransfert=>{
+                    debug("Chargement initial URL transfert : ", urlTransfert)
+                    _urlConsignationTransfert = urlTransfert
+                })
+                .catch(err=>console.warn("configurerThreadPutFichiersConsignation Erreur chargement initial URL transfert ", err))
+        }
     }
 
     _pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
@@ -842,6 +852,10 @@ async function stagingDelete(correlation, opts) {
     await deleteStaging(pathStaging, correlation)
 }
 
+function getUrlTransfert() {
+    return _urlConsignationTransfert
+}
+
 module.exports = { 
     configurerThreadPutFichiersConsignation,
 
@@ -852,4 +866,6 @@ module.exports = {
     stagingPut, stagingReady, stagingDelete, stagingStream,
 
     traiterTransactions,
+
+    getUrlTransfert,
 }
