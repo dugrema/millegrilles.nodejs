@@ -16,7 +16,8 @@ const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
       FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
       FICHIER_ETAT = 'etat.json',
       INTERVALLE_PUT_CONSIGNATION = 900_000,
-      CONST_TAILLE_SPLIT_MAX_DEFAULT = 5 * 1024 * 1024
+      CONST_TAILLE_SPLIT_MAX_DEFAULT = 5 * 1024 * 1024,
+      CONST_INTERVALLE_REFRESH_URL = 900_000
 
 const CODE_HACHAGE_MISMATCH = 1,
       CODE_CLES_SIGNATURE_INVALIDE = 2,
@@ -25,6 +26,8 @@ const CODE_HACHAGE_MISMATCH = 1,
 let _timerPutFichiers = null,
     _amqpdao = null,
     _urlConsignationTransfert = null,
+    _disableRefreshUrlTransfert = false,
+    _urlTimestamp = 0,
     _httpsAgent = null,
     _pathStaging = null,
     _consignerFichier = transfererFichierVersConsignation
@@ -32,11 +35,21 @@ let _timerPutFichiers = null,
 // Queue de fichiers a telecharger
 const _queueItems = []
 
-function configurerThreadPutFichiersConsignation(url, amqpdao, opts) {
+function configurerThreadPutFichiersConsignation(amqpdao, opts) {
     opts = opts || {}
 
-    _urlConsignationTransfert = new URL(''+url)
     _amqpdao = amqpdao
+
+    // Option pour indiquer que le URL de transfert est statique
+    _disableRefreshUrlTransfert = opts.DISABLE_REFRESH || false
+
+    try{
+        const url = opts.url    
+        if(url) _urlConsignationTransfert = new URL(''+url)
+    } catch(err) {
+        console.error("Erreur configuration URL upload : ", err)
+        if(_disableRefreshUrlTransfert) throw err  // L'URL est invalide et on ne doit pas le rafraichir
+    }
 
     _pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
     if(opts.consignerFichier) _consignerFichier = opts.consignerFichier
@@ -74,6 +87,19 @@ async function _threadPutFichiersConsignation() {
         // Clear timer si present
         if(_timerPutFichiers) clearTimeout(_timerPutFichiers)
         _timerPutFichiers = null
+
+        const dateUrlExpire = new Date().getTime() - CONST_INTERVALLE_REFRESH_URL
+        if( !_disableRefreshUrlTransfert && (!_urlConsignationTransfert || _urlTimestamp < dateUrlExpire) ) {
+            // Url consignation vide, on fait une requete pour la configuration initiale
+            try {
+                _urlConsignationTransfert = await chargerUrlRequete()
+            } catch(err) {
+                console.error("Erreur reload URL transfert fichiers : ", err)
+                if(!_urlConsignationTransfert) throw err    // Aucun URL par defaut
+            }
+            _urlTimestamp = new Date().getTime()
+            debug("Nouveau URL transfert fichiers : ", _urlConsignationTransfert)
+        }
 
         const pathReady = path.join(_pathStaging, PATH_STAGING_READY)
 
@@ -113,6 +139,29 @@ async function _threadPutFichiersConsignation() {
             _threadPutFichiersConsignation().catch(err=>console.error("Erreur run _threadPutFichiersConsignation: %O", err))
         }, INTERVALLE_PUT_CONSIGNATION)
 
+    }
+}
+
+async function chargerUrlRequete() {
+    const requete = {}
+    _amqpdao.requete
+    const reponse = await _amqpdao.transmettreRequete(
+        'CoreTopologie', 
+        requete, 
+        {action: 'getConsignationFichiers', exchange: '2.prive', attacherCertificat: true}
+    )
+    if(!reponse.ok) {
+        throw new Error("Erreur configuration URL transfert (reponse MQ): ok = false")
+    }
+    const { type_store, consignation_url } = reponse
+
+    const consignationURL = new URL(consignation_url)
+    consignationURL.pathname = '/fichiers_transfert'
+
+    switch(type_store) {
+        case 'millegrille': return consignationURL.href
+        default:
+            throw new Error(`Type store transfert non supporte : ${type_store}`)
     }
 }
 
