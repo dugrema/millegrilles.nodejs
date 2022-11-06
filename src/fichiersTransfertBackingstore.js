@@ -163,16 +163,19 @@ async function chargerUrlRequete() {
     if(!reponse.ok) {
         throw new Error("Erreur configuration URL transfert (reponse MQ): ok = false")
     }
-    const { type_store, consignation_url } = reponse
+    const { /*type_store,*/ consignation_url } = reponse
 
     const consignationURL = new URL(consignation_url)
     consignationURL.pathname = '/fichiers_transfert'
 
-    switch(type_store) {
-        case 'millegrille': return consignationURL.href
-        default:
-            throw new Error(`Type store transfert non supporte : ${type_store}`)
-    }
+    return consignationURL.href
+
+    // switch(type_store) {
+    //     case 'millegrille': return consignationURL.href
+    //     case 'sftp': return consignationURL.href
+    //     default:
+    //         throw new Error(`Type store transfert non supporte : ${type_store}`)
+    // }
 }
 
 /**
