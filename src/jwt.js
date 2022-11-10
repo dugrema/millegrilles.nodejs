@@ -1,6 +1,7 @@
 const debug = require('debug')('nodejs:jwt')
 const { SignJWT, jwtVerify, decodeProtectedHeader } = require("jose")
-const { createPrivateKey, X509Certificate } = require("crypto")
+const { createPrivateKey, createPublicKey, X509Certificate } = require("crypto")
+const { extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
 
 async function signerTokenFichier(fingerprint, clePriveePem, userId, fuuid, opts) {
     opts = opts || {}
@@ -32,15 +33,21 @@ async function verifierTokenFichier(pki, jwt) {
     const certificat = await pki.getCertificate(fingerprint)
     debug("verifierTokenFichier Certificat %s charge : %O", fingerprint, certificat)
 
-    // TODO : valider le certificat
+    const certificatForge = pki.validerCertificat(certificat)
+    // console.debug("!!!! Resultat validation : ", certificatForge)
+    const extensions = extraireExtensionsMillegrille(certificatForge)
 
-    const certNode = new X509Certificate(certificat)
-    const publicKey = certNode.publicKey
-    debug("verifierTokenFichier Cert charge : %O\nPublic key : %O", certNode, publicKey)
+    const publicKeyBytes = certificatForge.publicKey.publicKeyBytes
+    const publicKey = createPublicKey({
+        key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), publicKeyBytes]),
+        format: "der",
+        type: "spki",
+      });
+    debug("verifierTokenFichier Cert charge : %O\nPublic key : %O", certificat[0], publicKey)
 
     const verification = await jwtVerify(jwt, publicKey)
 
-    return verification.payload
+    return {...verification, extensions}
 }
 
 module.exports = { signerTokenFichier, verifierTokenFichier }
