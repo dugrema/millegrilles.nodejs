@@ -1,13 +1,12 @@
 const debug = require('debug')('nodejs:jwt')
 const { SignJWT, jwtVerify, decodeProtectedHeader } = require("jose")
-const { createPrivateKey, createPublicKey, X509Certificate } = require("crypto")
+const { createPrivateKey, createPublicKey } = require("crypto")
 const { extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
 
 async function signerTokenFichier(fingerprint, clePriveePem, userId, fuuid, opts) {
     opts = opts || {}
 
-    const expiration = opts.expiration || '2h',
-          domaine = opts.domaine
+    const expiration = opts.expiration || '2h'
 
     const privateKey = createPrivateKey({
         key: clePriveePem,
@@ -16,7 +15,12 @@ async function signerTokenFichier(fingerprint, clePriveePem, userId, fuuid, opts
     })
   
     const params = {userId}
-    if(domaine) params.domaine = domaine
+
+    // Copier champs optionnels
+    const champsCopier = ['domaine', 'mimetype', 'ref', 'header', 'iv', 'tag', 'format']
+    for(const champ of champsCopier) {
+        if(opts[champ]) params[champ] = opts[champ]
+    }
 
     const jwt = await new SignJWT(params)
         .setProtectedHeader({ alg: 'EdDSA', kid: fingerprint })
