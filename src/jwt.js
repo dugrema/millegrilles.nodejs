@@ -6,7 +6,8 @@ const { extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/
 async function signerTokenFichier(fingerprint, clePriveePem, userId, fuuid, opts) {
     opts = opts || {}
 
-    const expiration = opts.expiration || '2h'
+    const expiration = opts.expiration || '2h',
+          domaine = opts.domaine
 
     const privateKey = createPrivateKey({
         key: clePriveePem,
@@ -14,7 +15,10 @@ async function signerTokenFichier(fingerprint, clePriveePem, userId, fuuid, opts
         type: "pkcs8",
     })
   
-    const jwt = await new SignJWT({userId})
+    const params = {userId}
+    if(domaine) params.domaine = domaine
+
+    const jwt = await new SignJWT(params)
         .setProtectedHeader({ alg: 'EdDSA', kid: fingerprint })
         .setSubject(fuuid)
         .setExpirationTime(expiration)
