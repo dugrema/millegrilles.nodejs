@@ -354,8 +354,6 @@ class MilleGrillesAmqpDAO {
   }
 
   ecouter() {
-    var compteurMessages = 0;
-
     // Creer Q pour ecouter
     const promiseQPrincipale = this.channel.assertQueue('', {
       durable: false,
@@ -365,8 +363,7 @@ class MilleGrillesAmqpDAO {
       this.reply_q = q
 
       // Appeler listeners de connexion
-      for(let idx in this.connexionListeners) {
-        let listener = this.connexionListeners[idx]
+      for(const listener of this.connexionListeners) {
         listener.on_connecter()
       }
 
@@ -472,12 +469,17 @@ class MilleGrillesAmqpDAO {
         }
       } finally {
         // Recommencer a ecouter les evenements
-        var nouveauTag = await this.channel.consume(
-          infoQ.q.queue,
-          async msg => { this._traiterMessageCustom(msg, infoQ) },
-          {noAck: false}
-        )
-        infoQ.tag = nouveauTag.consumerTag
+        try {
+          const nouveauTag = await this.channel.consume(
+            infoQ.q.queue,
+            async msg => { this._traiterMessageCustom(msg, infoQ) },
+            {noAck: false}
+          )
+          infoQ.tag = nouveauTag.consumerTag
+        } catch(err) {
+          console.error("amqpdao._traiterMessageCustom Erreur re-enregistrement %s, reconnecter", infoQ.q.queue)
+          this.channelError = err  // Va forcer une reconnexion
+        }
       }
 
       // debug("Fin operation longue");
@@ -653,8 +655,8 @@ class MilleGrillesAmqpDAO {
   enregistrerListenerConnexion(listener) {
     this.connexionListeners.push(listener);
     if(this.channel) {
-      // La connexion existe deja, on force l'execution de l'evenement.
-      listener.on_connecter();
+      // La connexion existe deja, on declenche l'evenemnt de connexion
+      listener.on_connecter()
     }
   }
 
