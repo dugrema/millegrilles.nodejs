@@ -23,15 +23,18 @@ class ComptesUsagers {
     }
   }
 
-  chargerCompte = async (nomUsager, fingerprintPublicNouveau, fingerprintPublicCourant) => {
+  chargerCompte = async (nomUsager, fingerprintPublicNouveau, fingerprintPublicCourant, opts) => {
+    opts = opts || {}
     if( ! nomUsager ) throw new Error("Usager undefined")
+
+    const hostname = opts.hostname
 
     const domaine = 'CoreMaitreDesComptes'
     const action = 'chargerUsager'
 
     const requete = {nomUsager}
-    debug("Requete compte usager %s (fingerprintPublicNouveau : %s, fingerprintPublicCourant: %s)", 
-      nomUsager, fingerprintPublicNouveau, fingerprintPublicCourant)
+    debug("Requete compte usager %s (fingerprintPublicNouveau : %s, fingerprintPublicCourant: %s, hostname: %s)", 
+      nomUsager, fingerprintPublicNouveau, fingerprintPublicCourant, hostname)
 
     const promiseCompteUsager = this.amqDao.transmettreRequete(
       domaine, requete, {action, decoder: true, attacherCertificat: true})
@@ -83,6 +86,18 @@ class ComptesUsagers {
         // cote serveur pour confirmer la demande de signature.
       }
     }
+
+    // Combiner webauthn par hostname si disponible
+    const webauthn_hostnames = valeurs.webauthn_hostnames
+    let webauthn = valeurs.webauthn || []
+    if(webauthn_hostnames && hostname) {
+      const hostname_converti = hostname.replaceAll('.', '_')
+      if(webauthn_hostnames[hostname_converti]) {
+        debug("Remplacer webauthn (%O) par (%s: %O)", webauthn, hostname_converti, webauthn_hostnames[hostname_converti])
+        webauthn = webauthn_hostnames[hostname_converti]
+      }
+    }
+
     debug("Compte usager charge : %O", valeurs)
     return valeurs
   }

@@ -34,7 +34,8 @@ async function verifierUsager(socket, params) {
         hostnameRequest = socket.handshake.headers.host
   const nomUsager = params.nomUsager,
         fingerprintPk = params.fingerprintPk,
-        fingerprintCourant = params.fingerprintCourant
+        fingerprintCourant = params.fingerprintCourant,
+        hostname = params.hostname
 
   debug("Verification d'existence d'un usager : %s\nBody: %O", nomUsager, params)
 
@@ -43,7 +44,7 @@ async function verifierUsager(socket, params) {
     return {err: 'Requete sans nom d\'usager'}
   }
 
-  const infoUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager, fingerprintPk)
+  const infoUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager, fingerprintPk, null, {hostname})
   const compteUsager = infoUsager
 
   debug("Compte usager recu : %O", infoUsager)
