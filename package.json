@@ -16,7 +16,6 @@
   "devDependencies": {
     "babel-eslint": "^10.0.3",
     "cross-env": "^7.0.3",
-    "gh-pages": "^5.0.0",
     "jest": "^29.4.1",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.3"
@@ -47,7 +46,7 @@
   "peerDependencies": {
     "@dugrema/node-forge": "github:dugrema/forge#ed25519",
     "crypto": "^1",
-    "multiformats": "^9",
+    "multiformats": "^11",
     "uuid": "^8"
   }
 }
