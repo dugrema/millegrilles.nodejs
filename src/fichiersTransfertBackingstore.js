@@ -863,6 +863,10 @@ function getUrlTransfert() {
     return _urlConsignationTransfert
 }
 
+function getInstanceId() {
+    return _instance_id_consignationTransfer
+}
+
 module.exports = { 
     configurerThreadPutFichiersConsignation,
 
@@ -874,5 +878,5 @@ module.exports = {
 
     traiterTransactions,
 
-    getUrlTransfert,
+    getUrlTransfert, getInstanceId,
 }
