@@ -23,7 +23,7 @@ const CODE_HACHAGE_MISMATCH = 1,
       CODE_CLES_SIGNATURE_INVALIDE = 2,
       CODE_TRANSACTION_SIGNATURE_INVALIDE = 3
 
-let _timerPutFichiers = null,
+var _timerPutFichiers = null,
     _amqpdao = null,
     _urlConsignationTransfert = null,
     _disableRefreshUrlTransfert = false,
@@ -37,7 +37,6 @@ const _queueItems = []
 
 function configurerThreadPutFichiersConsignation(amqpdao, opts) {
     opts = opts || {}
-
     _amqpdao = amqpdao
 
     // Option pour indiquer que le URL de transfert est statique
@@ -154,7 +153,7 @@ async function _threadPutFichiersConsignation() {
 
 async function chargerUrlRequete() {
     const requete = {}
-    _amqpdao.requete
+    if(!_amqpdao) throw new Error("_amqpdao absent")
     const reponse = await _amqpdao.transmettreRequete(
         'CoreTopologie', 
         requete, 
