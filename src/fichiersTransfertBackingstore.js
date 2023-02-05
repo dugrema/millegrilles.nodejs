@@ -871,6 +871,10 @@ function getPathStaging() {
     return _pathStaging
 }
 
+function getHttpsAgent() {
+    return _httpsAgent
+}
+
 module.exports = { 
     configurerThreadPutFichiersConsignation,
 
@@ -882,5 +886,5 @@ module.exports = {
 
     traiterTransactions,
 
-    getUrlTransfert, getInstanceId, getPathStaging,
+    getUrlTransfert, getInstanceId, getPathStaging, getHttpsAgent,
 }
