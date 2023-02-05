@@ -30,7 +30,9 @@ var _timerPutFichiers = null,
     _urlTimestamp = 0,
     _httpsAgent = null,
     _pathStaging = null,
-    _consignerFichier = transfererFichierVersConsignation
+    _consignerFichier = transfererFichierVersConsignation,
+    _primaire = false,
+    _instance_id_consignationTransfer = null
 
 // Queue de fichiers a telecharger
 const _queueItems = []
@@ -38,6 +40,7 @@ const _queueItems = []
 function configurerThreadPutFichiersConsignation(amqpdao, opts) {
     opts = opts || {}
     _amqpdao = amqpdao
+    _primaire = opts.primaire || false
 
     // Option pour indiquer que le URL de transfert est statique
     _disableRefreshUrlTransfert = opts.DISABLE_REFRESH || false
@@ -51,10 +54,11 @@ function configurerThreadPutFichiersConsignation(amqpdao, opts) {
     } finally {
         // Tenter chargement initial
         if(!_disableRefreshUrlTransfert) {
-            chargerUrlRequete()
-                .then(urlTransfert=>{
-                    debug("Chargement initial URL transfert : ", urlTransfert)
-                    _urlConsignationTransfert = urlTransfert
+            chargerUrlRequete({primaire: _primaire})
+                .then(reponse=>{
+                    debug("Chargement initial URL transfert : ", reponse)
+                    _urlConsignationTransfert = reponse.url
+                    _instance_id_consignationTransfer = reponse.instance_id
                 })
                 .catch(err=>console.warn("configurerThreadPutFichiersConsignation Erreur chargement initial URL transfert ", err))
         }
@@ -101,7 +105,9 @@ async function _threadPutFichiersConsignation() {
         if( !_disableRefreshUrlTransfert && (!_urlConsignationTransfert || _urlTimestamp < dateUrlExpire) ) {
             // Url consignation vide, on fait une requete pour la configuration initiale
             try {
-                _urlConsignationTransfert = await chargerUrlRequete()
+                const reponse = await chargerUrlRequete({primaire: _primaire})
+                _urlConsignationTransfert = reponse.url
+                _instance_id_consignationTransfer = reponse.instance_id
             } catch(err) {
                 console.error("Erreur reload URL transfert fichiers : ", err)
                 if(!_urlConsignationTransfert) throw err    // Aucun URL par defaut
@@ -151,30 +157,29 @@ async function _threadPutFichiersConsignation() {
     }
 }
 
-async function chargerUrlRequete() {
-    const requete = {}
+async function chargerUrlRequete(opts) {
+    opts = opts || {}
+    const primaire = opts.primaire || false
+    const requete = {primaire}
+
     if(!_amqpdao) throw new Error("_amqpdao absent")
+
     const reponse = await _amqpdao.transmettreRequete(
         'CoreTopologie', 
         requete, 
         {action: 'getConsignationFichiers', exchange: '2.prive', attacherCertificat: true}
     )
+
     if(!reponse.ok) {
         throw new Error("Erreur configuration URL transfert (reponse MQ): ok = false")
     }
-    const { /*type_store,*/ consignation_url } = reponse
+
+    const { instance_id, consignation_url } = reponse
 
     const consignationURL = new URL(consignation_url)
     consignationURL.pathname = '/fichiers_transfert'
 
-    return consignationURL.href
-
-    // switch(type_store) {
-    //     case 'millegrille': return consignationURL.href
-    //     case 'sftp': return consignationURL.href
-    //     default:
-    //         throw new Error(`Type store transfert non supporte : ${type_store}`)
-    // }
+    return {url: consignationURL.href, instance_id}
 }
 
 /**
