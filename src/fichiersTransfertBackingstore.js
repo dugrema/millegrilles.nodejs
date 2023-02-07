@@ -54,7 +54,7 @@ function configurerThreadPutFichiersConsignation(amqpdao, opts) {
     } finally {
         // Tenter chargement initial
         if(!_disableRefreshUrlTransfert) {
-            chargerUrlRequete({primaire: _primaire})
+            chargerUrlRequete({primaire: true})
                 .then(reponse=>{
                     debug("Chargement initial URL transfert : ", reponse)
                     _urlConsignationTransfert = reponse.url
@@ -105,7 +105,7 @@ async function _threadPutFichiersConsignation() {
         if( !_disableRefreshUrlTransfert && (!_urlConsignationTransfert || _urlTimestamp < dateUrlExpire) ) {
             // Url consignation vide, on fait une requete pour la configuration initiale
             try {
-                const reponse = await chargerUrlRequete({primaire: _primaire})
+                const reponse = await chargerUrlRequete({primaire: true})
                 _urlConsignationTransfert = reponse.url
                 _instance_id_consignationTransfer = reponse.instance_id
             } catch(err) {
@@ -178,6 +178,8 @@ async function chargerUrlRequete(opts) {
 
     const consignationURL = new URL(consignation_url)
     consignationURL.pathname = '/fichiers_transfert'
+
+    debug("Consignation URL : %s", consignationURL.href)
 
     return {url: consignationURL.href, instance_id}
 }
@@ -875,8 +877,26 @@ function getHttpsAgent() {
     return _httpsAgent
 }
 
+function setEstPrimaire(primaire) {
+    debug('setEstPrimaire %s', primaire)
+    if(_primaire !== primaire) {
+        _primaire = primaire
+        debug("Toggle primaire => %s, reload url consignation", primaire)
+    }
+
+    // Recharger le URL de consignation - meme si on est secondaire, le primaire peut avoir change
+    chargerUrlRequete({primaire: true})
+        .then(reponse=>{
+            debug("Chargement initial URL transfert : ", reponse)
+            _urlConsignationTransfert = reponse.url
+            _instance_id_consignationTransfer = reponse.instance_id
+        })
+        .catch(err=>console.warn("configurerThreadPutFichiersConsignation Erreur chargement initial URL transfert ", err))
+}
+
 module.exports = { 
     configurerThreadPutFichiersConsignation,
+    ajouterFichierConsignation,
 
     middlewareRecevoirFichier, 
     middlewareReadyFichier, 
@@ -886,5 +906,5 @@ module.exports = {
 
     traiterTransactions,
 
-    getUrlTransfert, getInstanceId, getPathStaging, getHttpsAgent,
+    getUrlTransfert, getInstanceId, getPathStaging, getHttpsAgent, setEstPrimaire,
 }
