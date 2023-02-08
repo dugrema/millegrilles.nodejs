@@ -203,7 +203,8 @@ function middlewareRecevoirFichier(opts) {
         // const {position, correlation} = req.params
         const correlation = req.params.correlation,
               position = req.params.position || 0
-        debug("middlewareRecevoirFichier PUT %s position %d", correlation, position)
+        const fuuid = req.headers['x-fuuid']
+        debug("middlewareRecevoirFichier PUT fuuid %s : %s position %d", fuuid, correlation, position)
         
         try {
             await stagingPut(req, correlation, position, opts)
