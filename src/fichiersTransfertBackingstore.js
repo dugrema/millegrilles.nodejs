@@ -877,6 +877,10 @@ function getHttpsAgent() {
     return _httpsAgent
 }
 
+function getEstPrimaire() {
+    return _primaire
+}
+
 function setEstPrimaire(primaire) {
     debug('setEstPrimaire %s', primaire)
     if(_primaire !== primaire) {
@@ -906,5 +910,5 @@ module.exports = {
 
     traiterTransactions,
 
-    getUrlTransfert, getInstanceId, getPathStaging, getHttpsAgent, setEstPrimaire,
+    getUrlTransfert, getInstanceId, getPathStaging, getHttpsAgent, getEstPrimaire, setEstPrimaire,
 }
