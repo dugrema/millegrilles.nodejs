@@ -117,17 +117,22 @@ async function genererChallengeCertificat(socket) {
 
   // Generer challenge pour le certificat de navigateur ou cle de millegrille
   // Ces methodes sont toujours disponibles
-  var challengeCertificat = socket[CONST_CHALLENGE_CERTIFICAT]
-  if(!challengeCertificat) {
-    challengeCertificat = {
-      date: new Date().getTime(),
-      data: Buffer.from(randomBytes(32)).toString('base64'),
+  try {
+    var challengeCertificat = socket[CONST_CHALLENGE_CERTIFICAT]
+    if(!challengeCertificat) {
+      challengeCertificat = {
+        date: new Date().getTime(),
+        data: Buffer.from(randomBytes(32)).toString('base64'),
+      }
+      socket[CONST_CHALLENGE_CERTIFICAT] = challengeCertificat
     }
-    socket[CONST_CHALLENGE_CERTIFICAT] = challengeCertificat
-  }
-  const reponse = {challengeCertificat}
+    const reponse = {challengeCertificat}
 
-  return reponse
+    return reponse
+  } catch(err) {
+    console.error(new Date() + " genererChallengeCertificat Erreur ", err)
+    return {ok: false, err: ''+err}
+  }
 }
 
 function auditMethodesDisponibles(compteUsager, opts) {

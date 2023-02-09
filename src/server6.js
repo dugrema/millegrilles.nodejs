@@ -650,7 +650,12 @@ function getInfoIdmg(socket, params, cb, opts) {
 async function getCertificatsMaitredescles(socket, cb) {
   debugConnexions("server6.getCertificatsMaitredescles")
   const amqpdao = socket.amqpdao
-  return amqpdao.getCertificatsMaitredescles()
+  try {
+    await amqpdao.getCertificatsMaitredescles()
+  } catch(err) {
+    console.error(new Date() + ' serveur6.getCertificatsMaitredescles Erreur ', err)
+    return {ok: false, err: ''+err}
+  }
 }
 
 function transferHeaders(req, res, next) {
