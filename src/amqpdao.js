@@ -381,26 +381,26 @@ class MilleGrillesAmqpDAO {
 
     // Preparer les Q custom (utilisees pour traitements de longue duree)
     for(let nomQ in this.qCustom) {
-      const infoQ = this.qCustom[nomQ]
-      const messageTtl = infoQ.ttl
-      const qName = infoQ.name || ''  // Par defaut q nommee automatiquement
-      debug("Creer q custom %O", infoQ)
-      const promise = this.channel.assertQueue(qName, {
-        durable: false,
-        exclusive: !qName,  // Si qName est vide, on met exclusive (amq...)
-        messageTtl,
-      }).then( async q => {
-        debug("Q creee : %O", q)
-        infoQ.q = q
-        const tag = await this.channel.consume(
-          q.queue,
-          msg => { this._traiterMessageCustom(msg, infoQ) },
-          {noAck: false}
-        )
-        infoQ.tag = tag.consumerTag
-        debug("Queue custom %s cree (tag) : %O", nomQ, tag, q)
-      })
-      promises.push(promise)
+      promises.push(this.startConsumingCustomQ(nomQ, {init: true}))
+      // const messageTtl = infoQ.ttl
+      // const qName = infoQ.name || ''  // Par defaut q nommee automatiquement
+      // debug("Creer q custom %O", infoQ)
+      // const promise = this.channel.assertQueue(qName, {
+      //   durable: false,
+      //   exclusive: !qName,  // Si qName est vide, on met exclusive (amq...)
+      //   messageTtl,
+      // }).then( async q => {
+      //   debug("Q creee : %O", q)
+      //   infoQ.q = q
+      //   const tag = await this.channel.consume(
+      //     q.queue,
+      //     msg => { this._traiterMessageCustom(msg, infoQ) },
+      //     {noAck: false}
+      //   )
+      //   infoQ.tag = tag.consumerTag
+      //   debug("Queue custom %s cree (tag) : %O", nomQ, tag, q)
+      // })
+      // promises.push(promise)
     }
 
     return Promise.all(promises)
@@ -1250,6 +1250,44 @@ class MilleGrillesAmqpDAO {
   // Returns : [[cert0, certS], [cert1, certS], ...]
   getCertificatsMaitredescles() {
     return this.certificatManager.demanderCertificatMaitreDesCles()
+  }
+
+  async startConsumingCustomQ(queueName, opts) {
+    opts = opts || {}
+    const init = opts.init?true:false
+
+    const infoQ = this.qCustom[queueName]
+    const messageTtl = infoQ.ttl
+    const qName = infoQ.name || ''  // Par defaut q nommee automatiquement
+    
+    debug("Creer q custom %O", infoQ)
+    const q = this.channel.assertQueue(qName, {
+      durable: false,
+      exclusive: !qName,  // Si qName est vide, on met exclusive (amq...)
+      messageTtl,
+    })
+
+    debug("Q creee : %O", q)
+    infoQ.q = q
+    const autostart = infoQ.autostart
+    if(init === false || autostart !== false) {
+      const tag = await this.channel.consume(
+        q.queue,
+        msg => { this._traiterMessageCustom(msg, infoQ) },
+        {noAck: false}
+      )
+
+      infoQ.tag = tag.consumerTag
+      debug("Queue custom %s cree (tag %s)", qName, tag)
+    } else {
+      debug("Queue custom %s cree (autostart false)", qName)
+    }
+  }
+
+  async stopConsumingCustomQ(queueName) {
+    const infoQ = this.qCustom[queueName]
+    await this.channel.cancel(infoQ.tag)
+    infoQ.tag = null
   }
 
 }

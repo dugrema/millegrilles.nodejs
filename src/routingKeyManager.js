@@ -227,14 +227,16 @@ class RoutingKeyManager {
     }
   }
 
-  removeRoutingKeys(routingKeys) {
-    for(var routingKey_idx in routingKeys) {
-      let routingKeyName = routingKeys[routingKey_idx]
+  removeRoutingKeys(routingKeys, opts) {
+    const queue = opts.queue || this.mq.reply_q.queue,
+          exchange = opts.exchange || this.exchange
+
+    for(let routingKeyName of routingKeys) {
       delete this.registeredRoutingKeyCallbacks[routingKeyName]
 
       // Retirer la routing key
       debug("Enlever routingKeys %s", routingKeyName)
-      this.mq.channel.unbindQueue(this.mq.reply_q.queue, this.exchange, routingKeyName)
+      this.mq.channel.unbindQueue(queue, exchange, routingKeyName)
     }
   }
 
