@@ -210,18 +210,19 @@ class RoutingKeyManager {
 
       // Ajouter la routing key
       if(qCustom) {
-        debug("Ajouter callback pour routingKey %s sur Q %s", routingKeyName, qCustom)
+        debug("addRoutingKeyCallback Ajouter callback pour routingKey %s sur Q %s", routingKeyName, qCustom)
         // this.mq.channel.bindQueue(this.mq.qOperationLongue.queue, exchange, routingKeyName)
         const infoQ = this.mq.qCustom[qCustom]
         if(!infoQ) throw new Error(`Q custom ${qCustom} n'existe pas`)
+        debug("addRoutingKeyCallback Bind %s a %O", routingKeyName, infoQ.q.queue)
         this.mq.channel.bindQueue(infoQ.q.queue, exchange, routingKeyName)
       } else if(operationLongue) {
-        debug("Ajouter callback pour routingKey %s sur Q operation longue", routingKeyName)
+        debug("addRoutingKeyCallback Ajouter callback pour routingKey %s sur Q operation longue", routingKeyName)
         // this.mq.channel.bindQueue(this.mq.qOperationLongue.queue, exchange, routingKeyName)
         const infoQ = this.mq.qCustom.operationsLongues
         this.mq.channel.bindQueue(infoQ.q.queue, exchange, routingKeyName)
       } else {
-        debug("Ajouter callback pour routingKey %s", routingKeyName)
+        debug("addRoutingKeyCallback Ajouter callback pour routingKey %s", routingKeyName)
         this.mq.channel.bindQueue(this.mq.reply_q.queue, exchange, routingKeyName)
       }
     }

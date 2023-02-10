@@ -1261,7 +1261,7 @@ class MilleGrillesAmqpDAO {
     const qName = infoQ.name || ''  // Par defaut q nommee automatiquement
     
     debug("Creer q custom %O", infoQ)
-    const q = this.channel.assertQueue(qName, {
+    const q = await this.channel.assertQueue(qName, {
       durable: false,
       exclusive: !qName,  // Si qName est vide, on met exclusive (amq...)
       messageTtl,
