@@ -651,7 +651,7 @@ async function getCertificatsMaitredescles(socket, cb) {
   debugConnexions("server6.getCertificatsMaitredescles")
   const amqpdao = socket.amqpdao
   try {
-    await amqpdao.getCertificatsMaitredescles()
+    return await amqpdao.getCertificatsMaitredescles()
   } catch(err) {
     console.error(new Date() + ' serveur6.getCertificatsMaitredescles Erreur ', err)
     return {ok: false, err: ''+err}
