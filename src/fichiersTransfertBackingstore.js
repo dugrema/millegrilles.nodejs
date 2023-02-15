@@ -609,6 +609,22 @@ async function transfererFichierVersConsignation(amqpdao, pathReady, item) {
     fsPromises.rm(pathReadyItem, {recursive: true})
         .catch(err=>console.error("Erreur suppression repertoire %s apres consignation reussie : %O", item, err))
     
+    if(_primaire === true) {
+        // Emettre un message
+        await evenementFichierPrimaire(hachage)
+    }
+
+}
+
+async function evenementFichierPrimaire(fuuid) {
+    // Emettre evenement aux secondaires pour indiquer qu'un nouveau fichier est pret
+    debug("Evenement consignation primaire sur", fuuid)
+    const evenement = {fuuid}
+    try {
+    _amqpdao.emettreEvenement(evenement, 'fichiers', {action: 'consignationPrimaire', exchange: '2.prive', attacherCertificat: true})
+    } catch(err) {
+        console.error(new Date() + " uploadFichier.evenementFichierPrimaire Erreur ", err)
+    }
 }
 
 async function traiterTransactions(amqpdao, pathReady, item) {
