@@ -274,6 +274,8 @@ function middlewareReadyFichier(amqpdao, opts) {
             if(opts.passthroughOnSuccess !== true) {
                 return res.status(202).send({ok: true})
             } else {
+                res.hachage = hachage
+                res.transaction = transactionContenu
                 return next()
             }
 
