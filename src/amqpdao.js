@@ -514,7 +514,7 @@ class MilleGrillesAmqpDAO {
       const fingerprint = messageDict.fingerprint
       debug("Certificat recu (non sollicite) : " + fingerprint)
       try {
-        await this.certificatManager.sauvegarderMessageCertificat(messageContent, fingerprint)
+        await this.certificatManager.sauvegarderMessageCertificat(messageDict, fingerprint)
       } catch(err) {
         console.error("_traiterMessage: Erreur sauvegarde certificat\n%O", err)
       }
