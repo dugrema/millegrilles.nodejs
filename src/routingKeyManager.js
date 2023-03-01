@@ -193,7 +193,7 @@ class RoutingKeyManager {
       const certificat = json_message.certificat
       if(certificat) {
         console.warn("WARN Certificat recu en dehors du certificatManager, on le recupere (message a valider sera perdu)")
-        this.mq.pki.sauvegarderMessageCertificat(json_message)
+        this.mq.pki.sauvegarderMessageCertificat({certificat})
           .catch(err=>console.error("ERROR Erreur sauvegarde certificat ", err))
       } else {
         console.error("ERROR routingKeyManager.handeResponse, message correlation inconnue %s : %O", correlationId, json_message)

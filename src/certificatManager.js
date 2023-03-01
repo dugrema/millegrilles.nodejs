@@ -164,11 +164,14 @@ class GestionnaireCertificatMessages {
       debug("Demander certificat %s exchange %s et +", routingKey, niveauExchange)
       if(niveauExchange >= 3) {
         this.mq.transmettreRequete(routingKey, requete, {nowait: true, exchange: '3.protege'})
+          .catch(err=>console.error("ERROR demanderCertificat 3.protege : ", err))
       }
       if(niveauExchange >= 2) {
         this.mq.transmettreRequete(routingKey, requete, {nowait: true, exchange: '2.prive'})
+          .catch(err=>console.error("ERROR demanderCertificat 2.prive : ", err))
       }
       this.mq.transmettreRequete(routingKey, requete, {nowait: true, exchange: '1.public'})
+        .catch(err=>console.error("ERROR demanderCertificat 1.public : ", err))
 
     } else {
       throw new Error("Requete certificat %s deja en cours", fingerprint)
