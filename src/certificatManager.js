@@ -89,8 +89,9 @@ class GestionnaireCertificatMessages {
   async sauvegarderMessageCertificat(messageContent, fingerprint) {
     debug("Sauvegarder message certificat %s\n%O", fingerprint, messageContent)
     // Note : la sauvegarde lance une erreur si la chaine est invalide
-    const certificat = messageContent.certificat || messageContent.chaine_pem || messageContent['_certificat']
-    await this.pki.sauvegarderMessageCertificat({chaine_pem: certificat}, fingerprint)
+    const message = {...messageContent}
+    if(message.chaine_pem) message['_certificat'] = undefined // Retirer _certificat pour lire chaine_pem
+    await this.pki.sauvegarderMessageCertificat(message, fingerprint)
 
     // Charger le certificat recu est valide (aucune erreur lancee)
     // On le charge a partir de pki avec instruction nowait=true (pour eviter recursion infinie)

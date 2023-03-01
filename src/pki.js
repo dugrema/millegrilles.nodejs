@@ -327,7 +327,10 @@ class MilleGrillesPKI {
       // Nouveau format
       chaine_pem = message['_certificat']
     } else {
-      chaine_pem = message.chaine_pem || message.resultats.chaine_pem
+      chaine_pem = message.chaine_pem
+      if(!chaine_pem && message.resultats) {
+        chaine_pem = message.resultats.chaine_pem
+      }
     }
 
     if(!chaine_pem) {
