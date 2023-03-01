@@ -320,6 +320,7 @@ class MilleGrillesPKI {
   // Sauvegarde un message de certificat en format JSON
   async sauvegarderMessageCertificat(message_in, fingerprintBase58, opts) {
     opts = opts || {}
+    debug("sauvegarderMessageCertificat Message in\n", message_in)    
     let message = message_in
     if(typeof(message) === 'string') message = JSON.parse(message)
     let chaine_pem = ''
@@ -339,7 +340,7 @@ class MilleGrillesPKI {
     }
 
     if(!chaine_pem) {
-      throw new Error("Erreur reception certificat attache, mauvais format. Message : " + JSON.stringify(message_in))
+      throw new Error("Erreur reception certificat attache, mauvais format.")
     }
 
     if(!fingerprintBase58) {
