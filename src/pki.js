@@ -516,7 +516,7 @@ async function chargerCertificatFS(redisClient, fingerprint) {
   const data = await redisClient.get(cleCert)
   debug("chargerCertificatFS Resultat chargement cert redis : %O", data)
 
-  if(!data) return reject(new Error("Aucune donnee pour certificat " + fingerprint)) // No data
+  if(!data) throw new Error(`Aucune donnee pour certificat ${fingerprint}`) // No data
 
   const certCache = JSON.parse(data)   //splitPEMCerts(data)
   const listePems = certCache.pems
