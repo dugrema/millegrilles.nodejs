@@ -323,7 +323,12 @@ class MilleGrillesPKI {
     let message = message_in
     if(typeof(message) === 'string') message = JSON.parse(message)
     let chaine_pem = ''
-    if(message.attache || message['_certificat']) {
+    const entete = message['en-tete'] || {},
+          action = entete.action
+
+    if(action === 'infoCertificat') {
+      chaine_pem = message.chaine_pem
+    } else if(message.attache || message['_certificat']) {
       // Nouveau format
       chaine_pem = message['_certificat']
     } else {
@@ -334,7 +339,7 @@ class MilleGrillesPKI {
     }
 
     if(!chaine_pem) {
-      throw new Error("Erreur reception certificat attache, mauvais format. Message : " + message_in)
+      throw new Error("Erreur reception certificat attache, mauvais format. Message : " + JSON.stringify(message_in))
     }
 
     if(!fingerprintBase58) {
