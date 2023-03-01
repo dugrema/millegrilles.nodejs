@@ -189,7 +189,15 @@ class RoutingKeyManager {
     if(callback) {
       callback(json_message, opts)
     } else {
-      console.error("ERROR routingKeyManager.handeResponse, message correlation inconnue %s : %O", correlationId, json_message)
+      // Verifier si le message a un champ 'certificat'. Ca pourrait etre un broadcast/reponse certificat
+      const certificat = json_message.certificat
+      if(certificat) {
+        console.warn("WARN Certificat recu en dehors du certificatManager, on le recupere (message a valider sera perdu)")
+        this.mq.pki.sauvegarderMessageCertificat(json_message)
+          .catch(err=>console.error("ERROR Erreur sauvegarde certificat ", err))
+      } else {
+        console.error("ERROR routingKeyManager.handeResponse, message correlation inconnue %s : %O", correlationId, json_message)
+      }
     }
   }
 
