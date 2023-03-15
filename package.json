@@ -1,6 +1,6 @@
 {
   "name": "millegrilles.nodejs",
-  "version": "2023.2.1",
+  "version": "2023.2.2",
   "description": "Utilitaires communs serveur NodeJS pour MilleGrilles",
   "author": "dugrema",
   "license": "MIT",
