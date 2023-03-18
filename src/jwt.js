@@ -58,4 +58,39 @@ async function verifierTokenFichier(pki, jwt) {
     return {...verification, extensions}
 }
 
-module.exports = { signerTokenFichier, verifierTokenFichier }
+async function signerTokenApplication(fingerprint, clePriveePem, applicationId, uuid_transaction, opts) {
+    opts = opts || {}
+
+    const expiration = opts.expiration || '24h'
+
+    const privateKey = createPrivateKey({
+        key: clePriveePem,
+        format: "pem",
+        type: "pkcs8",
+    })
+  
+    const params = {
+        application_id: applicationId, 
+        // uuid_transaction,
+    }
+
+    // Copier champs optionnels
+    // const champsCopier = ['domaine', 'mimetype', 'ref', 'header', 'iv', 'tag', 'format']
+    // for(const champ of champsCopier) {
+    //     if(opts[champ]) params[champ] = opts[champ]
+    // }
+
+    const jwt = await new SignJWT(params)
+        .setProtectedHeader({ alg: 'EdDSA', kid: fingerprint })
+        .setSubject(uuid_transaction)
+        .setExpirationTime(expiration)
+        .sign(privateKey);
+
+    return jwt
+}
+
+async function verifierTokenApplication(pki, jwt) {
+    return await verifierTokenFichier(pki, jwt)
+}
+
+module.exports = { signerTokenFichier, verifierTokenFichier, signerTokenApplication, verifierTokenApplication }
