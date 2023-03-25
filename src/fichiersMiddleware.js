@@ -198,11 +198,8 @@ class FichiersMiddleware {
         }
     }
 
-    async preparerTransfertBatch(batchId, opts) {
-        opts = opts || {}
-        const pathUpload = path.join(this._pathStaging, PATH_STAGING_UPLOAD, batchId)
-        const pathReady = path.join(this._pathStaging, PATH_STAGING_READY, batchId)
-        await fsPromises.rename(pathUpload, pathReady)
+    getPathBatch(batchId) {
+        return path.join(this._pathStaging, PATH_STAGING_UPLOAD, batchId)
     }
 
 }
