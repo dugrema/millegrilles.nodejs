@@ -58,7 +58,12 @@ class FichiersTransfertUpstream {
                     .catch(err => console.warn("configurerThreadPutFichiersConsignation Erreur chargement initial URL transfert ", err))
             }
         }
-    
+
+        // Preparer directories
+        const pathReadyItem = path.join(this._pathStaging, PATH_STAGING_READY)
+        fsPromises.mkdir(pathReadyItem, {recursive: true, mode: 0o750})
+            .catch(err=>console.error("Erreur preparer path staging ready : %O", err))
+
         this._pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
         if (opts.consignerFichier) {
             this._consignerFichier = opts.consignerFichier
@@ -242,7 +247,7 @@ class FichiersTransfertUpstream {
     
             const contentLength = endPosition - position + 1
             const urlPosition = new URL(''+this._urlConsignationTransfert)
-            urlPosition.pathname = path.join(urlPosition.pathname, item, ''+position)
+            urlPosition.pathname = path.join(urlPosition.pathname, hachage, ''+position)
             debug("transfererFichierVersConsignation url %s taille %s", urlPosition, contentLength)
          
             if(!this._httpsAgent) throw new Error("putAxios: httpsAgent n'est pas initialise (utiliser : configurerThreadPutFichiersConsignation)")
@@ -254,7 +259,7 @@ class FichiersTransfertUpstream {
                     maxRedirects: 0,
                     url: urlPosition.href,
                     headers: {
-                        'content-length': 4,
+                        'content-length': contentLength,
                         'content-type': 'application/stream'
                     },
                     data: readStream,
@@ -274,7 +279,7 @@ class FichiersTransfertUpstream {
     
         // Faire POST pour confirmer upload, acheminer transactions
         const urlPost = new URL('' + this._urlConsignationTransfert)
-        urlPost.pathname = path.join(urlPost.pathname, item)
+        urlPost.pathname = path.join(urlPost.pathname, hachage)
         const reponsePost = await axios({
             method: 'POST',
             httpsAgent: this._httpsAgent,

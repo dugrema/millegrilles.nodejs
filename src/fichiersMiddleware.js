@@ -105,11 +105,11 @@ class FichiersMiddleware {
     middlewareReadyFichier(opts) {
         opts = opts || {}
 
-        // Preparer directories
-        const pathStaging = this._pathStaging
-        const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY)
-        fsPromises.mkdir(pathReadyItem, {recursive: true, mode: 0o750})
-            .catch(err=>console.error("Erreur preparer path staging ready : %O", err))
+        // // Preparer directories
+        // const pathStaging = this._pathStaging
+        // const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY)
+        // fsPromises.mkdir(pathReadyItem, {recursive: true, mode: 0o750})
+        //     .catch(err=>console.error("Erreur preparer path staging ready : %O", err))
         
         return (req, res, next) => this.middlewareReadyFichierHandler(req, res, next, opts)
     }
