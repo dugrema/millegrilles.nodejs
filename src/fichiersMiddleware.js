@@ -3,8 +3,6 @@ const fs = require('fs')
 const fsPromises = require('fs/promises')
 const path = require('path')
 const readdirp = require('readdirp')
-const https = require('https')
-const axios = require('axios')
 
 const { VerificateurHachage } = require('./hachage')
 
@@ -185,6 +183,14 @@ function middlewareDeleteStaging(opts) {
     }
 }
 
+async function preparerTransfertBatch(batchId, opts) {
+    opts = opts || {}
+    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
+    const pathUpload = path.join(pathStaging, PATH_STAGING_UPLOAD, batchId)
+    const pathReady = path.join(pathStaging, PATH_STAGING_READY, batchId)
+    await fsPromises.rename(pathUpload, pathReady)
+}
+
 async function getPathRecevoir(pathStaging, batchId, correlation, position) {
     const pathUpload = path.join(pathStaging, PATH_STAGING_UPLOAD, batchId, correlation)
     const pathUploadItem = path.join(pathUpload, '' + position + '.part')
@@ -349,7 +355,9 @@ async function readyStaging(amqpdao, pathStaging, batchId, correlation, hachage,
     }
 
     try {
-        await verifierFichier(hachage, pathUploadItem, opts)
+        const pathOutput = path.join(pathUploadItem, ''+hachage)
+        const writeStream = fs.createWriteStream(pathOutput)
+        await verifierFichier(hachage, pathUploadItem, {...opts, writeStream, deleteParts: true})
     } catch(err) {
         debug("readyStaging ERROR Fichier hachage mismatch")
         err.code = CODE_HACHAGE_MISMATCH
@@ -463,19 +471,14 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
         })
 
         const promise = new Promise((resolve, reject)=>{
-            fileReader.on('end', _=>{
-                try {
-                    if(opts.writeStream) { opts.writeStream.close() }
-                } catch(err) {
-                    console.error("fichiersTransfertBackingstore.verifierFichier ERREUR fermeture writeStream : %O", err)
-                }
-                resolve()
-            })
-            fileReader.on('error', err=>reject(err))
+            fileReader.on('end', resolve)
+            fileReader.on('error', reject)
         })
 
         await promise
         debug("Taille cumulative fichier %s : %d", pathUploadItem, total)
+
+        if(opts.deleteParts ===  true) await fsPromises.unlink(pathFichier)
     }
 
     // Verifier hachage - lance une exception si la verification echoue
@@ -488,4 +491,5 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
 
 module.exports = {
     middlewareRecevoirFichier, middlewareReadyFichier, middlewareDeleteStaging,
+    preparerTransfertBatch,
 }
