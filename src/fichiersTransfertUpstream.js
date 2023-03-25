@@ -15,8 +15,8 @@ const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
     FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
     FICHIER_ETAT = 'etat.json',
     INTERVALLE_PUT_CONSIGNATION = 900_000,
-    // CONST_TAILLE_SPLIT_MAX_DEFAULT = 100 * 1024 * 1024,
-    CONST_TAILLE_SPLIT_MAX_DEFAULT = 5 * 1024 * 1024,
+    CONST_TAILLE_SPLIT_MAX_DEFAULT = 100 * 1024 * 1024,
+    // CONST_TAILLE_SPLIT_MAX_DEFAULT = 5 * 1024 * 1024,
     CONST_INTERVALLE_REFRESH_URL = 900_000
 
 var _timerPutFichiers = null,

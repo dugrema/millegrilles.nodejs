@@ -19,32 +19,45 @@ const CODE_HACHAGE_MISMATCH = 1,
       CODE_CLES_SIGNATURE_INVALIDE = 2,
       CODE_TRANSACTION_SIGNATURE_INVALIDE = 3
 
-var _pathStaging = PATH_STAGING_DEFAUT
+class FichiersMiddleware {
 
-/**
- * Recoit une partie de fichier.
- * Configurer params :position et :correlation dans path expressjs.
- * @param {*} opts 
- * @returns 
- */
-function middlewareRecevoirFichier(opts) {
-    opts = opts || {}
+    constructor(mq, opts) {
+        opts = opts || {}
 
-    // Preparer directories
-    const pathStaging = opts.PATH_STAGING || _pathStaging
-    const pathUpload = path.join(pathStaging, PATH_STAGING_UPLOAD)
-    fsPromises.mkdir(pathUpload, {recursive: true, mode: 0o750})
-        .catch(err=>console.error("Erreur preparer path staging upload : %O", err))
+        if(!mq || !mq.pki) throw new Error("Parametre mq ou mq.pki pas initialise")
 
-    // Retourner fonction middleware pour recevoir un fichier (part)
-    return async (req, res, next) => {
+        this._mq = mq
+        this._pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+    }
+
+    /**
+     * Recoit une partie de fichier.
+     * Configurer params :position et :correlation dans path expressjs.
+     * @param {*} opts 
+     * @returns 
+     */
+    middlewareRecevoirFichier(opts) {
+        opts = opts || {}
+
+        // Preparer directories
+        const pathUpload = path.join(this._pathStaging, PATH_STAGING_UPLOAD)
+        fsPromises.mkdir(pathUpload, {recursive: true, mode: 0o750})
+            .catch(err=>console.error("Erreur preparer path staging upload : %O", err))
+
+        // Retourner fonction middleware pour recevoir un fichier (part)
+        return (req, res, next) => this.middlewareRecevoirFichierHandler(req, res, next, opts)
+    }
+
+    async middlewareRecevoirFichierHandler(req, res, next, opts) {
+        opts = opts || {}
+        debug("middlewareRecevoirFichierHandler DEBUG THIS ", this)
         const batchId = req.batchId
         if(!batchId) throw new Error('SERVER ERROR - batchId doit etre fournis dans req.batchId')
 
-        const { correlation } = req.params,
-              position = req.params.position || 0
-        const fuuid = req.headers['x-fuuid']
-        const tokenSrc = req.jwtsrc
+        const { correlation } = req.params
+        const position = req.params.position || 0,
+              fuuid = req.headers['x-fuuid'],
+              tokenSrc = req.jwtsrc
         debug("middlewareRecevoirFichier PUT fuuid %ss : %s/%s position %d (token %s)", fuuid, batchId, correlation, position, tokenSrc)
         
         if(!correlation) {
@@ -53,7 +66,7 @@ function middlewareRecevoirFichier(opts) {
         }
 
         try {
-            await stagingPut(req, batchId, correlation, position, {...opts, token: tokenSrc})
+            await stagingPut(this._pathStaging, req, batchId, correlation, position, {...opts, token: tokenSrc})
         } catch(err) {
             console.error("middlewareRecevoirFichier Erreur PUT: %O", err)
             const response = err.response
@@ -77,46 +90,49 @@ function middlewareRecevoirFichier(opts) {
             res.send({ok: true})
         }
     }
-}
 
-/**
- * Verifie un fichier et le met dans la Q de transfert interne vers consignation.
- * Verifie et conserve opts.cles et opts.transaction si fournis (optionnels).
- * Appelle next() sur succes, status 500 sur erreur.
- * @param {*} opts 
- *            - successStatus : Code de retour si succes, empeche call next()
- *            - cles : JSON de transaction de cles
- *            - transaction : JSON de transaction de contenu
- *            - writeStream : Conserve le fichier reassemble
- *            - clean(err) : Nettoyage (err : si erreur)
- */
-function middlewareReadyFichier(amqpdao, opts) {
-    opts = opts || {}
-    if(!amqpdao || !amqpdao.pki) throw new Error("Parametre amqpdao ou amqpdao.pki pas initialise")
+    /**
+     * Verifie un fichier et le met dans la Q de transfert interne vers consignation.
+     * Verifie et conserve opts.cles et opts.transaction si fournis (optionnels).
+     * Appelle next() sur succes, status 500 sur erreur.
+     * @param {*} opts 
+     *            - successStatus : Code de retour si succes, empeche call next()
+     *            - cles : JSON de transaction de cles
+     *            - transaction : JSON de transaction de contenu
+     *            - writeStream : Conserve le fichier reassemble
+     *            - clean(err) : Nettoyage (err : si erreur)
+     */
+    middlewareReadyFichier(opts) {
+        opts = opts || {}
 
-    // Preparer directories
-    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
-    const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY)
-    fsPromises.mkdir(pathReadyItem, {recursive: true, mode: 0o750}).catch(err=>console.error("Erreur preparer path staging ready : %O", err))
-    
-    return async (req, res, next) => {
+        // Preparer directories
+        const pathStaging = this._pathStaging
+        const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY)
+        fsPromises.mkdir(pathReadyItem, {recursive: true, mode: 0o750})
+            .catch(err=>console.error("Erreur preparer path staging ready : %O", err))
+        
+        return (req, res, next) => this.middlewareReadyFichierHandler(req, res, next, opts)
+    }
+
+    async middlewareReadyFichierHandler(req, res, next, opts) {
+        opts = opts || {}
         const batchId = req.batchId
         if(!batchId) throw new Error('SERVER ERROR - batchId doit etre fournis dans req.batchId')
 
         const { correlation } = req.params
         const informationFichier = req.body || {}
         debug("middlewareReadyFichier Traitement post %s/%s upload %O", batchId, correlation, informationFichier)
-      
+    
         const commandeMaitreCles = informationFichier.cles
         const transactionContenu = informationFichier.transaction
         const etat = informationFichier.etat || {},
-              hachage = etat.hachage || correlation
+            hachage = etat.hachage || correlation
         
         const optsReady = {...opts, cles: commandeMaitreCles, transaction: transactionContenu}
 
         try {
             
-            await readyStaging(amqpdao, pathStaging, batchId, correlation, hachage, optsReady)
+            await readyStaging(this._mq, this._pathStaging, batchId, correlation, hachage, optsReady)
 
             if(opts.clean) await opts.clean()
 
@@ -133,7 +149,7 @@ function middlewareReadyFichier(amqpdao, opts) {
             
             // Tenter cleanup
             try { 
-                const pathCorrelation = path.join(pathStaging, PATH_STAGING_UPLOAD, batchId, correlation)
+                const pathCorrelation = path.join(this._pathStaging, PATH_STAGING_UPLOAD, batchId, correlation)
                 await fsPromises.rm(pathCorrelation, {recursive: true})
                 if(opts.clean) await opts.clean(err) 
             } 
@@ -151,19 +167,19 @@ function middlewareReadyFichier(amqpdao, opts) {
             res.status(500).send({ok: false, err: ''+err})
         }
     }
-}
 
-/**
- * Supprime le repertoire de staging (upload et/ou ready)
- * @param {*} opts 
- * @returns 
- */
-function middlewareDeleteStaging(opts) {
-    opts = opts || {}
+    /**
+     * Supprime le repertoire de staging (upload et/ou ready)
+     * @param {*} opts 
+     * @returns 
+     */
+    middlewareDeleteStaging(opts) {
+        opts = opts || {}
+        return (req, res, next) => this.middlewareDeleteStagingHandler(req, res, next, opts)        
+    }
 
-    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
-
-    return async (req, res) => {
+    async middlewareDeleteStagingHandler(req, res, next, opts) {
+        opts = opts || {}
         const batchId = req.batchId
         if(!batchId) throw new Error('SERVER ERROR - batchId doit etre fournis dans req.batchId')
 
@@ -171,9 +187,9 @@ function middlewareDeleteStaging(opts) {
 
         try {
             if(correlation) {
-                await deleteFichierStaging(pathStaging, batchId, correlation)
+                await deleteFichierStaging(this._pathStaging, batchId, correlation)
             } else {
-                await deleteBatchStaging(pathStaging, batchId)
+                await deleteBatchStaging(this._pathStaging, batchId)
             }
             return res.sendStatus(200)
         } catch(err) {
@@ -181,14 +197,14 @@ function middlewareDeleteStaging(opts) {
             return res.sendStatus(500)
         }
     }
-}
 
-async function preparerTransfertBatch(batchId, opts) {
-    opts = opts || {}
-    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
-    const pathUpload = path.join(pathStaging, PATH_STAGING_UPLOAD, batchId)
-    const pathReady = path.join(pathStaging, PATH_STAGING_READY, batchId)
-    await fsPromises.rename(pathUpload, pathReady)
+    async preparerTransfertBatch(batchId, opts) {
+        opts = opts || {}
+        const pathUpload = path.join(this._pathStaging, PATH_STAGING_UPLOAD, batchId)
+        const pathReady = path.join(this._pathStaging, PATH_STAGING_READY, batchId)
+        await fsPromises.rename(pathUpload, pathReady)
+    }
+
 }
 
 async function getPathRecevoir(pathStaging, batchId, correlation, position) {
@@ -220,12 +236,9 @@ async function majFichierEtatUpload(pathStaging, batchId, correlation, data) {
  * @param {*} opts 
  * @returns 
  */
-async function stagingPut(inputStream, batchId, correlation, position, opts) {
+async function stagingPut(pathStaging, inputStream, batchId, correlation, position, opts) {
     opts = opts || {}
     if(typeof(position) === 'string') position = Number.parseInt(position)
-
-    // Preparer directories
-    const pathStaging = opts.PATH_STAGING || _pathStaging  // PATH_STAGING_DEFAUT
 
     // Verifier si le repertoire existe, le creer au besoin
     const pathFichierPut = await getPathRecevoir(pathStaging, batchId, correlation, position)
@@ -489,7 +502,8 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
     return true
 }
 
-module.exports = {
-    middlewareRecevoirFichier, middlewareReadyFichier, middlewareDeleteStaging,
-    preparerTransfertBatch,
-}
+module.exports = FichiersMiddleware
+// {
+//     middlewareRecevoirFichier, middlewareReadyFichier, middlewareDeleteStaging,
+//     preparerTransfertBatch,
+// }
