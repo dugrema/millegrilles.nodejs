@@ -334,7 +334,7 @@ async function readyStaging(amqpdao, pathStaging, batchId, correlation, hachage,
         // On a une commande de maitre des cles. Va etre acheminee et geree par le serveur de consignation.
         let contenu = opts.cles
         // contenu.corrompre = true
-        try { await validerMessage(pki, contenu) } 
+        try { await pki.verifierMessage(contenu)} 
         catch(err) {
             debug("readyStaging ERROR readyStaging Message cles invalide")
             err.code = CODE_CLES_SIGNATURE_INVALIDE
@@ -351,7 +351,7 @@ async function readyStaging(amqpdao, pathStaging, batchId, correlation, hachage,
         // On a une commande de transaction. Va etre acheminee et geree par le serveur de consignation.
         let contenu = opts.transaction
         // contenu.corrompre = true
-        try { await validerMessage(pki, contenu) } 
+        try { await pki.verifierMessage(contenu) } 
         catch(err) {
             debug("readyStaging ERROR readyStaging Message transaction invalide")
             err.code = CODE_TRANSACTION_SIGNATURE_INVALIDE
@@ -384,20 +384,6 @@ async function readyStaging(amqpdao, pathStaging, batchId, correlation, hachage,
     const pathEtat = path.join(pathUploadItem, FICHIER_ETAT)
     await fsPromises.writeFile(pathEtat, JSON.stringify(etat), {mode: 0o600})
 
-    // const pathReadyItem = path.join(pathStaging, PATH_STAGING_READY, batchId, correlation)
-
-    // try {
-    //     // Tenter un rename de repertoire (rapide)
-    //     await fsPromises.rename(pathUploadItem, pathReadyItem)
-    // } catch(err) {
-    //     // Echec du rename, on copie le contenu (long)
-    //     console.warn("WARN : Erreur deplacement fichier, on copie : %O", err)
-    //     await fsPromises.cp(pathUploadItem, pathReadyItem, {recursive: true})
-    //     await fsPromises.rm(pathUploadItem, {recursive: true})
-    // }
-
-    // Fichier pret, on l'ajoute a la liste de transfert
-    //ajouterFichierConsignation(item)  // Maintenant gerer via batch
 }
 
 function deleteFichierStaging(pathStaging, batchId, correlation) {
@@ -500,7 +486,3 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
 }
 
 module.exports = FichiersMiddleware
-// {
-//     middlewareRecevoirFichier, middlewareReadyFichier, middlewareDeleteStaging,
-//     preparerTransfertBatch,
-// }

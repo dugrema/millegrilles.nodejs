@@ -19,6 +19,10 @@ const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
     // CONST_TAILLE_SPLIT_MAX_DEFAULT = 5 * 1024 * 1024,
     CONST_INTERVALLE_REFRESH_URL = 900_000
 
+const CODE_HACHAGE_MISMATCH = 1,
+    CODE_CLES_SIGNATURE_INVALIDE = 2,
+    CODE_TRANSACTION_SIGNATURE_INVALIDE = 3
+
 class FichiersTransfertUpstream {
 
     constructor(mq, opts) {
@@ -94,7 +98,8 @@ class FichiersTransfertUpstream {
 
     async takeTransfertBatch(batchId, source) {
         const pathReady = path.join(this._pathStaging, PATH_STAGING_READY, batchId)
-        return await fsPromises.rename(source, pathReady)
+        await fsPromises.rename(source, pathReady)
+        return pathReady
     }
 
     ajouterFichierConsignation(item) {
@@ -229,7 +234,7 @@ class FichiersTransfertUpstream {
         const hachage = etat.hachage
     
         // Verifier les transactions (signature)
-        //const transactions = await traiterTransactions(amqpdao, pathReady, item)
+        const transactions = await traiterTransactions(this._mq, pathReadyItem)
     
         // Verifier le fichier (hachage)
         //await verifierFichier(hachage, pathReadyItem)
@@ -284,7 +289,7 @@ class FichiersTransfertUpstream {
             method: 'POST',
             httpsAgent: this._httpsAgent,
             url: urlPost.href,
-            // data: transactions,
+            data: transactions,
         })
     
         // Le fichier a ete transfere avec succes (aucune exception)
@@ -299,6 +304,48 @@ class FichiersTransfertUpstream {
         // }
     
     }
+}
+
+async function traiterTransactions(amqpdao, pathReady) {
+    let transactionContenu = null
+    const pki = amqpdao.pki
+
+    const transactions = {}
+
+    try {
+        const pathEtat = path.join(pathReady, FICHIER_ETAT)
+        const etat = JSON.parse(await fsPromises.readFile(pathEtat))
+        transactions.etat = etat
+    } catch(err) {
+        console.warn("ERROR durant chargement de l'etat de consignation de %s : %O", pathReady, err)
+    }
+
+    try {
+        const pathReadyItemTransaction = path.join(pathReady, FICHIER_TRANSACTION_CONTENU)
+        transactionContenu = JSON.parse(await fsPromises.readFile(pathReadyItemTransaction))
+    } catch(err) {
+        // Pas de transaction de contenu
+    }
+
+    if(transactionContenu) {
+        try { 
+            await pki.verifierMessage(transactionContenu) 
+            transactions.transaction = transactionContenu
+
+            const transactionCles = transactionContenu['_cles']
+            if(transactionCles) {
+                await pki.verifierMessage(transactionCles) 
+            }            
+        } 
+        catch(err) {
+            debug("Erreur validation transaction : ", err)
+            err.code = CODE_TRANSACTION_SIGNATURE_INVALIDE
+            throw err
+        }
+
+    }
+
+    return transactions
 }
 
 module.exports = FichiersTransfertUpstream
