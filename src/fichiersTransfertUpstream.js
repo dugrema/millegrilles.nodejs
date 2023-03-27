@@ -97,9 +97,11 @@ class FichiersTransfertUpstream {
     }
 
     async takeTransfertBatch(batchId, source) {
-        const pathReady = path.join(this._pathStaging, PATH_STAGING_READY, batchId)
-        await fsPromises.rename(source, pathReady)
-        return pathReady
+        const pathReady = path.join(this._pathStaging, PATH_STAGING_READY)
+        await fsPromises.mkdir(pathReady, {recursive: true})
+        const pathReadyBatch = path.join(pathReady, batchId)
+        await fsPromises.rename(source, pathReadyBatch)
+        return pathReadyBatch
     }
 
     ajouterFichierConsignation(item) {
@@ -303,6 +305,10 @@ class FichiersTransfertUpstream {
         //     await evenementFichierPrimaire(hachage)
         // }
     
+    }
+
+    getUrlConsignationTransfert() {
+        return this._urlConsignationTransfert
     }
 }
 
