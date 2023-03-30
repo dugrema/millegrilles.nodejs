@@ -95,7 +95,17 @@ class FichiersTransfertUpstream {
         const pathReady = path.join(this._pathStaging, PATH_STAGING_READY)
         await fsPromises.mkdir(pathReady, {recursive: true})
         const pathReadyBatch = path.join(pathReady, batchId)
-        await fsPromises.rename(source, pathReadyBatch)
+        try {
+            await fsPromises.rename(source, pathReadyBatch)
+        } catch(err) {
+            if(err.code === 'ENOTEMPTY') {
+                debug("Destination %s n'est pas vide, on supprime pour re-appliquer ready du nouvel upload", pathReadyBatch)
+                await fsPromises.rm(pathReadyBatch, {recursive: true})
+                await fsPromises.rename(source, pathReadyBatch)
+            } else {
+                throw err
+            }
+        }
         return pathReadyBatch
     }
 
