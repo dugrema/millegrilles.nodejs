@@ -7,11 +7,8 @@ const readdirp = require('readdirp')
 const https = require('node:https')
 const axios = require('axios')
 
-const { VerificateurHachage } = require('./hachage')
-
 const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
     PATH_STAGING_READY = 'ready',
-    FICHIER_TRANSACTION_CLES = 'transactionCles.json',
     FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
     FICHIER_ETAT = 'etat.json',
     INTERVALLE_PUT_CONSIGNATION = 900_000,
@@ -32,9 +29,8 @@ class FichiersTransfertUpstream {
         this._urlConsignationTransfert = null
         this._urlTimestamp = 0
         this._httpsAgent = null
-        this._pathStaging = PATH_STAGING_DEFAUT
+        this._pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
         this._consignerFichier = null
-        this._primaire = opts.primaire || false
         this._instance_id_consignationTransfer = null
         this._tailleMaxTransfert = CONST_TAILLE_SPLIT_MAX_DEFAULT
 
@@ -59,7 +55,7 @@ class FichiersTransfertUpstream {
                         this._urlConsignationTransfert = reponse.url
                         this._instance_id_consignationTransfer = reponse.instance_id
                     })
-                    .catch(err => console.warn("configurerThreadPutFichiersConsignation Erreur chargement initial URL transfert ", err))
+                    .catch(err => console.warn("FichiersTransfertUpstream Erreur chargement initial URL transfert ", err))
             }
         }
 
@@ -68,7 +64,6 @@ class FichiersTransfertUpstream {
         fsPromises.mkdir(pathReadyItem, {recursive: true, mode: 0o750})
             .catch(err=>console.error("Erreur preparer path staging ready : %O", err))
 
-        this._pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
         if (opts.consignerFichier) {
             this._consignerFichier = opts.consignerFichier
         } else {
@@ -78,9 +73,9 @@ class FichiersTransfertUpstream {
         // Configurer httpsAgent avec les certificats/cles
         const pki = mq.pki
         const { chainePEM: cert, cle: key, ca } = pki
-        if (!cert) throw new Error("fichiersTransfertBackingstore.configurerThreadPutFichiersConsignation Certificat non disponible")
-        if (!key) throw new Error("fichiersTransfertBackingstore.configurerThreadPutFichiersConsignation Cle non disponible")
-        debug("configurerThreadPutFichiersConsignation _https.Agent cert : \n%s\n%s\n%s", cert, key, ca)
+        if (!cert) throw new Error("fichiersTransfertUpstream Certificat non disponible")
+        if (!key) throw new Error("fichiersTransfertUpstream Cle non disponible")
+        debug("fichiersTransfertUpstream _https.Agent cert : \n%s\n%s\n%s", cert, key, ca)
         this._httpsAgent = new https.Agent({
             //keepAlive: true,
             //maxSockets: 10,
@@ -196,7 +191,7 @@ class FichiersTransfertUpstream {
     
     async chargerUrlRequete(opts) {
         opts = opts || {}
-        const requete = { primaire: this._primaire }
+        const requete = { /*primaire: this._primaire*/ }
     
         if (!this._mq) throw new Error("_mq absent")
     
@@ -237,9 +232,6 @@ class FichiersTransfertUpstream {
     
         // Verifier les transactions (signature)
         const transactions = await traiterTransactions(this._mq, pathReadyItem)
-    
-        // Verifier le fichier (hachage)
-        //await verifierFichier(hachage, pathReadyItem)
     
         const pathFichier = path.join(pathReadyItem, hachage),
               infoFichier = await fsPromises.stat(pathFichier)
@@ -299,11 +291,6 @@ class FichiersTransfertUpstream {
         debug("Fichier %s transfere avec succes vers consignation, reponse %O", item, reponsePost)
         fsPromises.rm(pathReadyItem, { recursive: true })
             .catch(err => console.error("Erreur suppression repertoire %s apres consignation reussie : %O", item, err))
-    
-        // if (_primaire === true) {
-        //     // Emettre un message
-        //     await evenementFichierPrimaire(hachage)
-        // }
     
     }
 
