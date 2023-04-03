@@ -458,6 +458,15 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
     // Trier en ordre numerique
     filesNumero.sort((a,b)=>{return a-b})
 
+    const writerPromise = new Promise((resolve, reject)=>{
+        if(opts.writeStream) {
+            opts.writeStream.on('close', resolve)
+            opts.writeStream.on('error', reject)
+        } else {
+            resolve()
+        }
+    })
+
     let total = 0
     for(let idx in filesNumero) {
         const fileNumero = filesNumero[idx]
@@ -480,13 +489,17 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
         const promise = new Promise((resolve, reject)=>{
             fileReader.on('end', resolve)
             fileReader.on('error', reject)
+            fileReader.read()
         })
-
         await promise
         debug("Taille cumulative fichier %s : %d", pathUploadItem, total)
 
         if(opts.deleteParts ===  true) await fsPromises.unlink(pathFichier)
     }
+
+    if(opts.writeStream) opts.writeStream.close()
+
+    await writerPromise  // Si on a un writer, attendre l'ecriture complete
 
     // Verifier hachage - lance une exception si la verification echoue
     await verificateurHachage.verify()
