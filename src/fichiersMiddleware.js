@@ -277,7 +277,18 @@ async function stagingPut(pathStaging, inputStream, batchId, correlation, positi
 
     if(ArrayBuffer.isView(inputStream)) {
         // Traiter buffer directement
-        writer.write(inputStream)
+        // writer.write(inputStream)
+        await new Promise((resolve, reject)=>{
+            writer.on('close', resolve)
+            writer.on('error', err=>{ 
+                fsPromises.unlink(pathFichierPut).catch(err=>{
+                    console.error("Erreur delete part incomplet %s : %O", pathFichierPut, err)
+                })
+                reject(err)
+            })
+            writer.write(inputStream)
+            writer.close()
+        })        
 
         const nouvellePosition = inputStream.length + contenuStatus.position
         await majFichierEtatUpload(pathStaging, batchId, correlation, {position: nouvellePosition})
