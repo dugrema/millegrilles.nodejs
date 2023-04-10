@@ -57,6 +57,7 @@ class FichiersMiddleware {
         const { correlation } = req.params
         const position = req.params.position || 0,
               fuuid = req.headers['x-fuuid'],
+              hachagePart = req.headers['x-content-hash'],
               tokenSrc = req.jwtsrc
         debug("middlewareRecevoirFichier PUT fuuid %ss : %s/%s position %d (token %s)", fuuid, batchId, correlation, position, tokenSrc)
         
@@ -66,7 +67,7 @@ class FichiersMiddleware {
         }
 
         try {
-            await stagingPut(this._pathStaging, req, batchId, correlation, position, {...opts, token: tokenSrc})
+            await stagingPut(this._pathStaging, req, batchId, correlation, position, {...opts, token: tokenSrc, hachagePart})
         } catch(err) {
             console.error("middlewareRecevoirFichier Erreur PUT: %O", err)
             const response = err.response
@@ -235,11 +236,17 @@ async function majFichierEtatUpload(pathStaging, batchId, correlation, data) {
  */
 async function stagingPut(pathStaging, inputStream, batchId, correlation, position, opts) {
     opts = opts || {}
+    const hachagePart = opts.hachagePart
     if(typeof(position) === 'string') position = Number.parseInt(position)
 
     // Verifier si le repertoire existe, le creer au besoin
     const pathFichierPut = await getPathRecevoir(pathStaging, batchId, correlation, position)
     debug("PUT fichier %s", pathFichierPut)
+
+    let verificateurHachage = null
+    if(hachagePart) {
+        verificateurHachage = new VerificateurHachage(hachagePart)
+    }
 
     if(opts.token) {
         const dirToken = path.parse(path.parse(pathFichierPut).dir).dir
@@ -278,6 +285,20 @@ async function stagingPut(pathStaging, inputStream, batchId, correlation, positi
     if(ArrayBuffer.isView(inputStream)) {
         // Traiter buffer directement
         // writer.write(inputStream)
+        if(verificateurHachage) {
+            verificateurHachage.update(inputStream)
+            try {
+                await verificateurHachage.verify()  // Lance erreur si hachage invalide
+            } catch(err) {
+                debug("Erreur de hachage ", err)
+                fsPromises.unlink(pathFichierPut).catch(err=>{
+                    console.error("Erreur delete part incomplet %s : %O", pathFichierPut, err)
+                })
+                err.response = {status: 400, data: {ok: false, err: ''+err, code: 'Hash mismatch'}}
+                throw err
+            }
+            debug("Hachage part OK")
+        }
         await new Promise((resolve, reject)=>{
             writer.on('close', resolve)
             writer.on('error', err=>{ 
@@ -300,12 +321,29 @@ async function stagingPut(pathStaging, inputStream, batchId, correlation, positi
         const promise = new Promise((resolve, reject)=>{
             inputStream.on('data', chunk=>{ 
                 compteurTaille += chunk.length
+                if(verificateurHachage) {
+                    verificateurHachage.update(chunk)
+                }
                 return chunk
             })
-            inputStream.on('end', ()=>{ 
+            inputStream.on('end', async () => { 
                 // Resultat OK
                 const nouvellePosition = compteurTaille + contenuStatus.position
-                majFichierEtatUpload(pathStaging, batchId, correlation, {position: nouvellePosition})
+                if(verificateurHachage) {
+                    try {
+                        await verificateurHachage.verify()
+                    } catch(err) {
+                        debug("Erreur de hachage ", err)
+                        fsPromises.unlink(pathFichierPut).catch(err=>{
+                            console.error("Erreur delete part incomplet %s : %O", pathFichierPut, err)
+                        })
+                        err.response = {status: 400, data: {ok: false, err: ''+err, code: 'Hash mismatch'}}
+                        return reject(err)
+                    }
+    
+                    debug("Hachage part OK")
+                }
+                await majFichierEtatUpload(pathStaging, batchId, correlation, {position: nouvellePosition})
                     .then(()=>{
                         debug("stagingPut Rename fichier work vers ", pathFichierPut)
                         return fsPromises.rename(pathFichierPutWork, pathFichierPut)
