@@ -435,6 +435,19 @@ class MilleGrillesAmqpDAO {
       });
   }
 
+  async ajouterQueueCustom(nomQ, configQ) {
+    const configExistante = this.qCustom[nomQ]
+    if(configExistante) {
+      if(configExistante.tag) {
+        await this.channel.cancel(configExistante.tag)
+      }
+      console.warn("!!! nodejs.amqpdao.ajouterQueueCustom TODO Cleanup vieille Q pour nom ", nomQ)
+    }
+    // Changer config
+    this.qCustom[nomQ] = configQ
+    await this.startConsumingCustomQ(nomQ, {init: true})
+  }
+
   async _traiterMessageCustom(msg, infoQ) {
     let consumerTag = infoQ.tag
     infoQ.tag = null
