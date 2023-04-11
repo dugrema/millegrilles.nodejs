@@ -1264,6 +1264,7 @@ class MilleGrillesAmqpDAO {
     const q = await this.channel.assertQueue(qName, {
       durable: false,
       exclusive: !qName,  // Si qName est vide, on met exclusive (amq...)
+      autoDelete: !!infoQ.autoDelete,
       messageTtl,
     })
 

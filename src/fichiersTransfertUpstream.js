@@ -39,6 +39,8 @@ class FichiersTransfertUpstream {
 
         // Liste de batch a transferer (batchIds)
         this._queueItems = []
+
+        this._listenersChangement = []  // Listeners de changement consignation (id, url)
     
         try {
             const url = opts.url
@@ -52,8 +54,10 @@ class FichiersTransfertUpstream {
                 this.chargerUrlRequete({ primaire: true })
                     .then(reponse => {
                         debug("Chargement initial URL transfert : ", reponse)
+                        const changement = this._urlConsignationTransfert !== reponse.url || this._instance_id_consignationTransfer !== reponse.instance_id
                         this._urlConsignationTransfert = reponse.url
                         this._instance_id_consignationTransfer = reponse.instance_id
+                        if(changement) this.emettreEvenement()
                     })
                     .catch(err => console.warn("FichiersTransfertUpstream Erreur chargement initial URL transfert ", err))
             }
@@ -129,8 +133,10 @@ class FichiersTransfertUpstream {
                 // Url consignation vide, on fait une requete pour la configuration initiale
                 try {
                     const reponse = await this.chargerUrlRequete({ primaire: true })
+                    const changement = this._urlConsignationTransfert !== reponse.url || this._instance_id_consignationTransfer !== reponse.instance_id
                     this._urlConsignationTransfert = reponse.url
                     this._instance_id_consignationTransfer = reponse.instance_id
+                    if(changement) this.emettreEvenement()
                 } catch (err) {
                     console.error("Erreur reload URL transfert fichiers : ", err)
                     if (!this._urlConsignationTransfert) throw err    // Aucun URL par defaut
@@ -307,6 +313,28 @@ class FichiersTransfertUpstream {
 
     getUrlConsignationTransfert() {
         return this._urlConsignationTransfert
+    }
+
+    getIdConsignation() {
+        return this._instance_id_consignationTransfer
+    }
+
+    ajouterListener(listenerCb) {
+        this._listenersChangement.push(listenerCb)
+    }
+
+    retirerListener(listenerCb) {
+        this._listenersChangement = this._listenersChangement.filter(item=>item!==listenerCb)
+    }
+
+    emettreEvenement() {
+        for(const listener of this._listenersChangement) {
+            try {
+                listener(this)
+            } catch(err) {
+                console.error("fichiersTransfertUpstream Erreur evenementListeners ", err)
+            }
+        }
     }
 }
 
