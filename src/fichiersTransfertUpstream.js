@@ -294,6 +294,7 @@ class FichiersTransfertUpstream {
             httpsAgent: this._httpsAgent,
             url: urlPost.href,
             data: transactions,
+            timeout: 1_200_000,
         })
     
         // Le fichier a ete transfere avec succes (aucune exception)
