@@ -7,6 +7,8 @@ const readdirp = require('readdirp')
 const https = require('node:https')
 const axios = require('axios')
 
+const { Hacheur } = require('./hachage')
+
 const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
     PATH_STAGING_READY = 'ready',
     FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
@@ -258,6 +260,21 @@ class FichiersTransfertUpstream {
         for(let position=0; position<tailleFichier; position += this._tailleMaxTransfert) {
             const endPosition = Math.min(position+this._tailleMaxTransfert, tailleFichier) - 1  // position end inclusive
     
+            {
+                // Calculer hachage part
+                const readStream = fs.createReadStream(pathFichier, { start: position, end: endPosition })
+                const hacheur = new Hacheur({hashingCode: 'blake2s-256', encoding: 'base64'})
+                await new Promise((resolve, reject)=>{
+                    readStream.on('data', chunk => hacheur.update(chunk))
+                    readStream.on('end', resolve)
+                    readStream.on('error', reject)
+                    readStream.read()
+                })
+                debug("Finalize hachage")
+                var hachagePart = await hacheur.finalize()
+                debug("Hachage part : ", hachagePart)
+            }
+
             const readStream = fs.createReadStream(pathFichier, { start: position, end: endPosition })
     
             const contentLength = endPosition - position + 1
@@ -275,7 +292,8 @@ class FichiersTransfertUpstream {
                     url: urlPosition.href,
                     headers: {
                         'content-length': contentLength,
-                        'content-type': 'application/stream'
+                        'content-type': 'application/stream',
+                        'x-content-hash': hachagePart,
                     },
                     data: readStream,
                     timeout: 1_200_000,
