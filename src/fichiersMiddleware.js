@@ -13,7 +13,9 @@ const PATH_STAGING_DEFAUT = '/var/opt/millegrilles/consignation/staging/commun',
       PATH_STAGING_READY = 'ready',
       FICHIER_TRANSACTION_CLES = 'transactionCles.json',
       FICHIER_TRANSACTION_CONTENU = 'transactionContenu.json',
-      FICHIER_ETAT = 'etat.json'
+      FICHIER_ETAT = 'etat.json',
+      CONST_EXPIRATION_UPLOAD = 86_400_000,
+      CONST_INTERVALLE_ENTRETIEN = 3_600_000
 
 const CODE_HACHAGE_MISMATCH = 1,
       CODE_CLES_SIGNATURE_INVALIDE = 2,
@@ -28,6 +30,14 @@ class FichiersMiddleware {
 
         this._mq = mq
         this._pathStaging = opts.PATH_STAGING || PATH_STAGING_DEFAUT
+
+        this._intervalCleanup = setInterval(()=>{
+            this.cleanupUpload()
+                .catch(err=>console.error(new Date() + ' FichiersMiddleware ERROR Erreur cleanup upload', err))
+        }, CONST_INTERVALLE_ENTRETIEN)
+    
+        this.cleanupUpload()
+            .catch(err=>console.error(new Date() + ' FichiersMiddleware ERROR Erreur cleanup upload', err))
     }
 
     /**
@@ -201,6 +211,28 @@ class FichiersMiddleware {
 
     getPathBatch(batchId) {
         return path.join(this._pathStaging, PATH_STAGING_UPLOAD, batchId)
+    }
+
+    async cleanupUpload() {
+        const pathUpload = path.join(this._pathStaging, PATH_STAGING_UPLOAD)
+        debug("Entretien du repertoire staging upload %s", pathUpload)
+
+        const promiseReaddirp = readdirp(pathUpload, {
+            type: 'directories',
+            depth: 1,
+            alwaysStat: true,
+        })
+    
+        const expiration = new Date().getTime() - CONST_EXPIRATION_UPLOAD
+
+        for await (const entry of promiseReaddirp) {
+            debug("Entry path : %O", entry);
+            const mtimeMs = entry.stats.mtimeMs
+            if(mtimeMs < expiration) {
+                debug("Entry upload expire - on supprime ", entry.fullPath)
+                await fsPromises.rm(entry.fullPath, {recursive: true})
+            }
+        }
     }
 
 }
