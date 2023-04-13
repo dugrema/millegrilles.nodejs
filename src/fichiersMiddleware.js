@@ -168,11 +168,11 @@ class FichiersMiddleware {
 
             switch(err.code) {
                 case CODE_HACHAGE_MISMATCH:
-                    return res.send({ok: false, err: 'HACHAGE MISMATCH', code: err.code})
+                    return res.status(400).send({ok: false, err: 'HACHAGE MISMATCH', code: err.code})
                 case CODE_CLES_SIGNATURE_INVALIDE:
-                    return res.send({ok: false, err: 'CLES SIGNATURE INVALIDE', code: err.code})
+                    return res.status(400).send({ok: false, err: 'CLES SIGNATURE INVALIDE', code: err.code})
                 case CODE_TRANSACTION_SIGNATURE_INVALIDE:
-                    return res.send({ok: false, err: 'TRANSACTION SIGNATURE INVALIDE', code: err.code})
+                    return res.status(400).send({ok: false, err: 'TRANSACTION SIGNATURE INVALIDE', code: err.code})
             }
 
             res.status(500).send({ok: false, err: ''+err})
@@ -522,11 +522,14 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
 
     // Extraire noms de fichiers, cast en Number (pour trier)
     const filesNumero = files.map(file=>{
-        return Number(file.path.split('.')[0])
+        debug("verifierFichier Part ", file.path)
+        return Number.parseInt(file.path.split('.')[0])
     })
 
     // Trier en ordre numerique
     filesNumero.sort((a,b)=>{return a-b})
+
+    debug("verifierFichier parts triees\n", filesNumero)
 
     const writerPromise = new Promise((resolve, reject)=>{
         if(opts.writeStream) {
