@@ -567,7 +567,7 @@ async function verifierFichier(hachage, pathUploadItem, opts) {
         await promise
         debug("Taille cumulative fichier %s : %d", pathUploadItem, total)
 
-        if(opts.deleteParts ===  true) await fsPromises.unlink(pathFichier)
+        if(opts.deleteParts === true) await fsPromises.unlink(pathFichier)
     }
 
     if(opts.writeStream) opts.writeStream.close()

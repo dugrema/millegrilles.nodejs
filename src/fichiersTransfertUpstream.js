@@ -254,8 +254,8 @@ class FichiersTransfertUpstream {
         const pathFichier = path.join(pathReadyItem, hachage),
               infoFichier = await fsPromises.stat(pathFichier)
         
-        debug("Transactions et fichier OK : %s, %O", pathReadyItem, infoFichier)
         let tailleFichier = infoFichier.size
+        debug("Transactions et fichier OK : %s, size: %O", pathReadyItem, tailleFichier)
     
         for(let position=0; position<tailleFichier; position += this._tailleMaxTransfert) {
             const endPosition = Math.min(position+this._tailleMaxTransfert, tailleFichier) - 1  // position end inclusive
@@ -323,7 +323,7 @@ class FichiersTransfertUpstream {
     
         // Le fichier a ete transfere avec succes (aucune exception)
         // On peut supprimer le repertoire ready local
-        debug("Fichier %s transfere avec succes vers consignation, reponse %O", item, reponsePost)
+        debug("Fichier %s transfere avec succes vers consignation, reponse status %s", item, reponsePost.status)
         fsPromises.rm(pathReadyItem, { recursive: true })
             .catch(err => console.error("Erreur suppression repertoire %s apres consignation reussie : %O", item, err))
     
