@@ -289,7 +289,7 @@ async function upgradeProtegeCertificat(socket, params) {
   debug("authentification.upgradeProtegeCertificat Params recus : %O, challenge session %O", params, challengeSession)
 
   const resultat = await verifierSignatureCertificat(
-    idmg, params._certificat, challengeSession, params, {certCa})
+    idmg, params.certificat, challengeSession, params, {certCa})
 
   debug("upgradeProtegeCertificat: Resultat = %O", resultat)
 
@@ -320,7 +320,7 @@ async function upgradeProteger(socket, params) {
     // Permet de revalider le mode protege avec le certificat de navigateur
 
     // Emettre le certificat de navigateur pour s'assurer qu'il existe sur le noeud
-    var fullchain = params['_certificat']
+    var fullchain = params['certificat']
     if(fullchain) {
       debug("Authentification valide, info certificat : %O", fullchain)
       await comptesUsagersDao.emettreCertificatNavigateur(fullchain)
@@ -364,7 +364,7 @@ async function veriferUpgradeProtegerApp(socket, params, opts) {
     // Permet de revalider le mode protege avec le certificat de navigateur
 
     const resultat = await verifierSignatureCertificat(
-      idmg, params._certificat, challengeSocket, params, {certCa})
+      idmg, params.certificat, challengeSocket, params, {certCa})
 
     debug("upgradeProtegeCertificat: Resultat = %O", resultat)
 

@@ -90,7 +90,7 @@ class GestionnaireCertificatMessages {
     debug("Sauvegarder message certificat %s\n%O", fingerprint, messageContent)
     // Note : la sauvegarde lance une erreur si la chaine est invalide
     const message = {...messageContent}
-    if(message.chaine_pem) message['_certificat'] = undefined // Retirer _certificat pour lire chaine_pem
+    if(message.chaine_pem) message['certificat'] = undefined // Retirer _certificat pour lire chaine_pem
     await this.pki.sauvegarderMessageCertificat(message, fingerprint)
 
     // Charger le certificat recu est valide (aucune erreur lancee)
@@ -120,7 +120,7 @@ class GestionnaireCertificatMessages {
     debug("Sauvegarder message certificat maitre des cles %s", messageDict)
     // Valider le certificat
     try {
-      const pem = messageDict['_certificat']
+      const pem = messageDict['certificat']
       const { valide, certificat } = await this.pki.verifierMessage(messageDict)
 
       if(valide) {

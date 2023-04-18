@@ -643,7 +643,8 @@ class MilleGrillesAmqpDAO {
       } else {
         // On tente de charger le certificat, transferer callback vers l'attente
         // du certificat
-        let fingerprint = messageDict['en-tete'].fingerprint_certificat;
+        // let fingerprint = messageDict['en-tete'].fingerprint_certificat;
+        const fingerprint = messageDict.pubkey
         debug("Certificat inconnu, on fait une demande : %s", fingerprint);
 
         // Creer un callback a utiliser apres reception du certificat
@@ -683,11 +684,12 @@ class MilleGrillesAmqpDAO {
     let routingKey = 'transaction.' + domaine
     if(opts.partition) routingKey = routingKey + '.' + opts.partition
     if(opts.action) routingKey = routingKey + '.' + opts.action
-    const correlation = messageFormatte['en-tete']['uuid_transaction'];
+    // const correlation = messageFormatte['en-tete']['uuid_transaction'];
+    const correlation = messageFormatte.id
 
     // On attache toujours le certificat pour une transaction
     const chaineCertificatsList = this.pki.chaineCertificatsList
-    messageFormatte['_certificat'] = chaineCertificatsList
+    messageFormatte['certificat'] = chaineCertificatsList
 
     const messageString = JSON.stringify(messageFormatte)
 
@@ -697,10 +699,12 @@ class MilleGrillesAmqpDAO {
 
   transmettreEnveloppeTransaction(transactionFormattee, domaine) {
     const jsonMessage = JSON.stringify(transactionFormattee);
-    const correlation = transactionFormattee['en-tete']['uuid_transaction'];
-    let domaine_rk = domaine || transactionFormattee['en-tete'].domaine
-    let action_rk = transactionFormattee['en-tete'].action
-    let partition_rk = transactionFormattee['en-tete'].partition
+    // const correlation = transactionFormattee['en-tete']['uuid_transaction'];
+    const correlation = transactionFormattee.id
+    const routage = transactionFormattee.routage || {}
+    let domaine_rk = domaine || routage.domaine
+    let action_rk = routage.action
+    let partition_rk = routage.partition
 
     let routingKey = 'transaction.' + domaine_rk
     if(partition_rk) routingKey = routingKey + '.' + partition_rk
@@ -717,20 +721,17 @@ class MilleGrillesAmqpDAO {
 
     const jsonMessage = JSON.stringify(commandeSignee);
     let correlation = null
-    let entete = commandeSignee['en-tete'],
-        partition = opts.partition || entete.partition,
-        action = opts.action || entete.action
+    const routage = commandeSignee.routage || {}
+    let partition = opts.partition || routage.partition,
+        action = opts.action || routage.action
 
     // Utiliser domaine de l'entete au besoin
-    domaine = domaine || entete.domaine
+    domaine = domaine || routage.domaine
 
     if(!opts.nowait) {
-      correlation = entete['uuid_transaction']
+      correlation = commandeSignee.id  //entete['uuid_transaction']
     }
     var routingKey = domaine
-    if(!routingKey) {
-      routingKey = entete.domaine
-    }
     if(!routingKey.startsWith('commande.')) {
       routingKey = 'commande.' + routingKey
     }
@@ -868,9 +869,10 @@ class MilleGrillesAmqpDAO {
   async transmettreRequete(domaineAction, message, opts) {
     if(!opts) opts = {};
     let routingKey = 'requete.' + domaineAction
-    let entete_in = message['en-tete'] || {}
-    let partition = opts.partition || entete_in.partition
-    let action = opts.action || entete_in.action
+    // let entete_in = message['en-tete'] || {}
+    const routage = message.routage || {}
+    let partition = opts.partition || routage.partition
+    let action = opts.action || routage.action
     if(partition) routingKey = routingKey + '.' + partition
     if(action) routingKey = routingKey + '.' + action
     debug("transmettreRequete Routing : %s (opts: %O)", routingKey, opts)
@@ -883,10 +885,11 @@ class MilleGrillesAmqpDAO {
 
       // Changement - on attache toujours le certificat pour une requete
       const chaineCertificatsList = this.pki.chaineCertificatsList
-      message['_certificat'] = chaineCertificatsList
+      message['certificat'] = chaineCertificatsList
     }
 
-    const entete = message['en-tete']
+    // const entete = message['en-tete']
+    const messageId = message.id
 
     // debug("Verifier si on attache certs, opts : %O", opts)
     // if( opts.attacherCertificat ) {
@@ -898,7 +901,7 @@ class MilleGrillesAmqpDAO {
 
     var correlationId = null
     if( ! opts.nowait ) {
-      correlationId = entete['uuid_transaction']
+      correlationId = correlationId // entete['uuid_transaction']
     }
     const jsonMessage = JSON.stringify(message)
 
@@ -949,23 +952,24 @@ class MilleGrillesAmqpDAO {
     if(opts.partition) routingKey = routingKey + '.' + opts.partition
     if(opts.action) routingKey = routingKey + '.' + opts.action
 
-    var entete = message['en-tete']
-    if( ! opts.noformat || ! entete ) {
+    // var entete = message['en-tete']
+    let routage = message.routage
+    if( ! opts.noformat || ! routage ) {
       // Formatter l'entete et signer la commande
       // infoTransaction = this._formatterInfoTransaction(domaineAction)
       // message['en-tete'] = infoTransaction
       // this._signerMessage(message)
       message = await this.pki.formatterMessage(message, domaineAction, opts)
-      entete = message['en-tete']
+      // entete = message['en-tete']
 
       // On attache toujours le certificat pour une commande
       const chaineCertificatsList = this.pki.chaineCertificatsList
-      message['_certificat'] = chaineCertificatsList
+      message['certificat'] = chaineCertificatsList
     }
 
     var correlation = null
     if(!opts.nowait) {
-      correlation = entete['uuid_transaction']
+      correlation = message.id  // entete['uuid_transaction']
     }
 
     const jsonMessage = JSON.stringify(message)
@@ -1015,7 +1019,7 @@ class MilleGrillesAmqpDAO {
     // this._signerMessage(message);
     message = await this.pki.formatterMessage(message, domaineAction, opts)
 
-    const correlationId = message['en-tete']['uuid_transaction'];
+    const correlationId = message.id  // message['en-tete']['uuid_transaction'];
     const jsonMessage = JSON.stringify(message);
 
     // Transmettre requete - la promise permet de traiter la reponse
@@ -1243,7 +1247,7 @@ class MilleGrillesAmqpDAO {
     opts = opts || {}
     const expiration = opts.expiration || EXPIRATION_MESSAGE_DEFAUT  // expiration en millisecs
     const epochCourant = new Date().getTime()
-    const estampille = message['en-tete'].estampille * 1000
+    const estampille = message.estampille * 1000  // message['en-tete'].estampille * 1000
     const tempsExpire = epochCourant - expiration
 
     if(estampille > epochCourant) {

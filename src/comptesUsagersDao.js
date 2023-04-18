@@ -129,7 +129,7 @@ class ComptesUsagers {
 
   chargerCompteUsager = (socket, requete) => {
     // Utilise la signature de l'usager pour charger son compte
-    if(!requete['en-tete']) return {ok: false, err: 'Signature de message "chargerCompteUsager" absente'}
+    if(!requete.sig) return {ok: false, err: 'Signature de message "chargerCompteUsager" absente'}
 
     const domaine = DOMAINE_MAITRECOMPTES
     const action = 'chargerUsager'
@@ -279,7 +279,7 @@ class ComptesUsagers {
 
   getRecoveryCsr = (socket, requete) => {
     // Utilise la signature de l'usager pour charger son compte
-    if(!requete['en-tete']) return {ok: false, err: 'Signature de message "getRecoveryCsr" absente'}
+    if(!requete.sig) return {ok: false, err: 'Signature de message "getRecoveryCsr" absente'}
     const domaine = DOMAINE_MAITRECOMPTES
     const action = 'getCsrRecoveryParcode'
     return transmettreRequete(socket, requete, action, {domaine})
@@ -294,7 +294,7 @@ class ComptesUsagers {
     const nomUsager = socket.nomUsager || session.nomUsager
 
           // Utilise la signature de l'usager pour charger son compte
-    if(!commande['en-tete']) return {ok: false, err: 'Signature de message "signerRecoveryCsr" absente'}
+    if(!commande.sig) return {ok: false, err: 'Signature de message "signerRecoveryCsr" absente'}
     const domaine = DOMAINE_MAITRECOMPTES
     const action = 'signerCompteUsager'
 
@@ -412,9 +412,13 @@ async function transmettreCommande(socket, params, action, opts) {
 
 /* Fonction de verification pour eviter abus de l'API */
 function verifierMessage(message, domaine, action) {
-  const entete = message['en-tete'] || {},
-        domaineRecu = entete.domaine,
-        actionRecue = entete.action
+  const routage = message.routage || {},
+        domaineRecu = routage.domaine,
+        actionRecue = routage.action
+  
+  // const entete = message['en-tete'] || {},
+  //       domaineRecu = entete.domaine,
+  //       actionRecue = entete.action
   if(domaineRecu !== domaine) throw new Error(`Mismatch domaine (${domaineRecu} !== ${domaine})"`)
   if(actionRecue !== action) throw new Error(`Mismatch action (${actionRecue} !== ${action})"`)
 }

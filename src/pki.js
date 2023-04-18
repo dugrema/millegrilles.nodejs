@@ -116,9 +116,9 @@ class MilleGrillesPKI {
   //   this.getFingerprint()
   // }
 
-  formatterMessage(message, domaineAction, opts) {
+  formatterMessage(kind, message, opts) {
     // Retourner promise
-    return this.formatteurMessage.formatterMessage(message, domaineAction, opts)
+    return this.formatteurMessage.formatterMessage(kind, message, opts)
   }
 
   async verifierMessage(message, opts) {
@@ -159,16 +159,17 @@ class MilleGrillesPKI {
     // Retourner promise
     const certificat = chaineForge[0]
 
-    const [hachage, signature] = await verifierMessage(message, certificat)
+    const [hachage, signature] = await verifierMessage(message, {certificat})
     const valide = hachage === true && signature === true
     return {valide, certificat}
   }
 
   async getCertificatMessage(message, opts) {
     opts = opts || {}
-    const fingerprint = message['en-tete'].fingerprint_certificat
-    const chaine = message['_certificat'],
-          millegrille = message['_millegrille']
+    const fingerprint = message.pubkey
+    // const fingerprint = message['en-tete'].fingerprint_certificat
+    const chaine = message['certificat'],
+          millegrille = message['millegrille']
 
     const optsMessages = {...opts}
     if(chaine) {
@@ -324,14 +325,16 @@ class MilleGrillesPKI {
     let message = message_in
     if(typeof(message) === 'string') message = JSON.parse(message)
     let chaine_pem = ''
-    const entete = message['en-tete'] || {},
-          action = entete.action
+    const routage = message.routage || {},
+          action = routage.action
+    // const entete = message['en-tete'] || {},
+    //       action = entete.action
 
     if(action === 'infoCertificat') {
       chaine_pem = message.chaine_pem
-    } else if(message.attache || message['_certificat']) {
+    } else if(message.attache || message['certificat']) {
       // Nouveau format
-      chaine_pem = message['_certificat']
+      chaine_pem = message['certificat']
     } else {
       chaine_pem = message.chaine_pem
       if(!chaine_pem && message.resultats) {

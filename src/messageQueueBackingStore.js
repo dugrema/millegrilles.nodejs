@@ -122,7 +122,8 @@ function middlewareRecevoirMessage(opts) {
        
         try {
             const transaction = req.body || {}
-            const uuid_transaction = transaction['en-tete'].uuid_transaction
+            // const uuid_transaction = transaction['en-tete'].uuid_transaction
+            const uuid_transaction = transaction.id
             debug("middlewareReadyFichier Traitement post %s transferer\n%O", uuid_transaction, transaction)
 
             await conserverMessageStaging(amqpdao, pathStaging, transaction, opts)
@@ -164,7 +165,8 @@ function middlewareRecevoirMessage(opts) {
 async function conserverMessageStaging(amqpdao, pathStaging, transaction, opts) {
     opts = opts || {}
     const pki = amqpdao.pki
-    const uuid_transaction = transaction['en-tete'].uuid_transaction
+    // const uuid_transaction = transaction['en-tete'].uuid_transaction
+    const uuid_transaction = transaction.id
 
     debug("readyStaging item %s", uuid_transaction)
 
