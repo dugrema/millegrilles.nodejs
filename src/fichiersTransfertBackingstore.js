@@ -621,7 +621,7 @@ async function evenementFichierPrimaire(fuuid) {
     debug("Evenement consignation primaire sur", fuuid)
     const evenement = {fuuid}
     try {
-    _amqpdao.emettreEvenement(evenement, 'fichiers', {action: 'consignationPrimaire', exchange: '2.prive', attacherCertificat: true})
+    _amqpdao.emettreEvenement(evenement, {domaine: 'fichiers', action: 'consignationPrimaire', exchange: '2.prive', attacherCertificat: true})
     } catch(err) {
         console.error(new Date() + " uploadFichier.evenementFichierPrimaire Erreur ", err)
     }

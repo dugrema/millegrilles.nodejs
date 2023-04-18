@@ -1,5 +1,6 @@
 const debug = require('debug')('millegrilles:notifications')
 const { deflate } = require('node:zlib')
+const { MESSAGE_KINDS } = require('@dugrema/millegrilles.utiljs/src/constantes')
 const chiffrageEd25519 = require('@dugrema/millegrilles.utiljs/src/chiffrage.ed25519')
 const chiffrage = require('../src/chiffrage')
 const { base64 } = require('multiformats/bases/base64')
@@ -51,7 +52,7 @@ class EmetteurNotifications {
 
         debug("Contenu notification a preparer : %s" % message)
 
-        const messageSigne = await mq.pki.formatterMessage(message, 'message')
+        const messageSigne = await mq.pki.formatterMessage(MESSAGE_KINDS.KIND_DOCUMENT, message, {domaine: 'message'})
         debug("Message signe : ", messageSigne)
         let messageBytes = JSON.stringify(messageSigne)
         messageBytes = await new Promise((resolve, reject)=>{
@@ -78,7 +79,7 @@ class EmetteurNotifications {
                 certificatsPem, this.cleSecrete, 'Messagerie', ref_hachage_bytes, identificateurs_document, 
                 {peer: this.peerPublic}
             )
-            const commandeSignee = await mq.pki.formatterMessage(commande, 'MaitreDesCles', {action: 'sauvegarderCle'})
+            const commandeSignee = await mq.pki.formatterMessage(MESSAGE_KINDS.KIND_COMMANDE, commande, {domaine: 'MaitreDesCles', action: 'sauvegarderCle'})
             debug("Commande maitre des cles ", commandeSignee)
 
             this.commandeCle = commandeSignee

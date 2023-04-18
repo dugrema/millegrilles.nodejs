@@ -6,6 +6,8 @@
 const debugLib = require('debug')
 const amqplib = require('amqplib')
 
+const { MESSAGE_KINDS } = require('@dugrema/millegrilles.utiljs/src/constantes')
+
 const RoutingKeyManager = require('./routingKeyManager')
 const GestionnaireCertificatMessages = require('./certificatManager')
 
@@ -546,7 +548,10 @@ class MilleGrillesAmqpDAO {
         debug("_traiterMessage: Resultat verification signature %s", resultatVerification.valide)
 
         if(resultatVerification.valide) {
-          await this.traiterMessageValide(messageDict, msg, resultatVerification.certificat)
+          // Parse enveloppe message pour extraire le champ contenu et parser
+          const contenu = JSON.parse(messageDict.contenu)
+          contenu['__original'] = messageDict
+          await this.traiterMessageValide(contenu, msg, resultatVerification.certificat)
         } else {
           await this.traiterMessageInvalide(messageDict, msg)
         }
@@ -680,7 +685,7 @@ class MilleGrillesAmqpDAO {
     if(!opts) opts = {}
 
     // Ajouter entete et signature
-    const messageFormatte = await this.pki.formatterMessage(message, domaine, opts)
+    const messageFormatte = await this.pki.formatterMessage(MESSAGE_KINDS.KIND_TRANSACTION, message, {...opts, domaine})
     let routingKey = 'transaction.' + domaine
     if(opts.partition) routingKey = routingKey + '.' + opts.partition
     if(opts.action) routingKey = routingKey + '.' + opts.action
@@ -784,7 +789,7 @@ class MilleGrillesAmqpDAO {
   // Transmet reponse (e.g. d'une requete)
   // Repond directement a une Q (exclusive)
   async transmettreReponse(message, replyTo, correlationId) {
-    const messageFormatte = await this.pki.formatterMessage(message, null, {attacherCertificat: true});
+    const messageFormatte = await this.pki.formatterMessage(MESSAGE_KINDS.KIND_REPONSE, message, {attacherCertificat: true});
     const jsonMessage = JSON.stringify(messageFormatte);
 
     // Faire la publication
@@ -881,7 +886,7 @@ class MilleGrillesAmqpDAO {
       // infoTransaction = this._formatterInfoTransaction(routingKey);
       // message['en-tete'] = infoTransaction;
       // this._signerMessage(message);
-      message = await this.pki.formatterMessage(message, domaineAction, opts)
+      message = await this.pki.formatterMessage(MESSAGE_KINDS.KIND_REQUETE, message, {...opts, domaine: domaineAction})
 
       // Changement - on attache toujours le certificat pour une requete
       const chaineCertificatsList = this.pki.chaineCertificatsList
@@ -959,7 +964,7 @@ class MilleGrillesAmqpDAO {
       // infoTransaction = this._formatterInfoTransaction(domaineAction)
       // message['en-tete'] = infoTransaction
       // this._signerMessage(message)
-      message = await this.pki.formatterMessage(message, domaineAction, opts)
+      message = await this.pki.formatterMessage(MESSAGE_KINDS.KIND_COMMANDE, message, {...opts, domaine: domaineAction})
       // entete = message['en-tete']
 
       // On attache toujours le certificat pour une commande
@@ -981,16 +986,17 @@ class MilleGrillesAmqpDAO {
     return this._transmettre(routingKey, jsonMessage, correlation, opts)
   }
 
-  async emettreEvenement(message, domaineAction, opts) {
+  async emettreEvenement(message, opts) {
     opts = opts || {}
+    const domaineAction = opts.domaine
 
     // const infoTransaction = this._formatterInfoTransaction(routingKey);
     // message['en-tete'] = infoTransaction;
     // this._signerMessage(message);
     // let domaine = opts.domaine || routingKey
-    message = await this.pki.formatterMessage(message, domaineAction, opts)
+    message = await this.pki.formatterMessage(MESSAGE_KINDS.KIND_EVENEMENT, message, {...opts, domaine: domaineAction})
 
-    let routingKey = domaineAction
+    let routingKey = domaineAction || ''
     if(!routingKey.startsWith('evenement')) {
       routingKey = 'evenement.' + routingKey
     }
@@ -1017,7 +1023,7 @@ class MilleGrillesAmqpDAO {
     // const infoTransaction = this._formatterInfoTransaction(routingKey)
     // message['en-tete'] = infoTransaction;
     // this._signerMessage(message);
-    message = await this.pki.formatterMessage(message, domaineAction, opts)
+    message = await this.pki.formatterMessage(MESSAGE_KINDS.KIND_REQUETE, message, {...opts, domaine: domaineAction})
 
     const correlationId = message.id  // message['en-tete']['uuid_transaction'];
     const jsonMessage = JSON.stringify(message);

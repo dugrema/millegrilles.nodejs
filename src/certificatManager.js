@@ -2,6 +2,7 @@ const debug = require('debug')('millegrilles:common:certificatmanager')
 // import { pki } from '@dugrema/node-forge'
 const { hacherCertificat } = require('./hachage')
 const forgecommon = require('@dugrema/millegrilles.utiljs/src/forgecommon')
+const { MESSAGE_KINDS } = require('@dugrema/millegrilles.utiljs/src/constantes')
 
 const { pki } = require('@dugrema/node-forge')
 
@@ -222,7 +223,9 @@ class GestionnaireCertificatMessages {
       // Il n'y a pas de demandeur specifique, on emet le certificat
       // let messageJSONStr = JSON.stringify(messageCertificat)
       //this.mq._publish(MG_ROUTING_EMETTRE_CERTIFICAT, messageJSONStr)
-      this.mq.emettreEvenement(messageCertificat, 'certificat', {action: 'infoCertificat', attacherCertificat: true})
+      this.mq.emettreEvenement(messageCertificat, 
+        {domaine: 'certificat', action: 'infoCertificat', attacherCertificat: true}
+      )
         .then(()=>{
           debug("Certificat emis OK")
         })
