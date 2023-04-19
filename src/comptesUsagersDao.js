@@ -201,12 +201,12 @@ class ComptesUsagers {
     debug("Transaction ajouter certificat navigateur compte usager %s completee", nomUsager)
   }
 
-  relayerTransaction = async (transaction) => {
-    debug("relayerTransaction : %O", transaction)
-    const confirmation = await this.amqDao.transmettreEnveloppeTransaction(transaction)
-    debug("Confirmation relayer transactions : %O", confirmation)
-    return confirmation
-  }
+  // relayerTransaction = async (transaction) => {
+  //   debug("relayerTransaction : %O", transaction)
+  //   const confirmation = await this.amqDao.transmettreEnveloppeTransaction(transaction)
+  //   debug("Confirmation relayer transactions : %O", confirmation)
+  //   return confirmation
+  // }
 
   signerCertificatNavigateur = async (csr, nomUsager, userId, opts) => {
     opts = opts || {}

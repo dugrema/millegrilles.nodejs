@@ -117,6 +117,7 @@ class MilleGrillesPKI {
   // }
 
   formatterMessage(kind, message, opts) {
+    if(isNaN(Number.parseInt(kind))) throw new Error("nodejs.pki.formatterMessage Kind doit etre un integer")
     // Retourner promise
     return this.formatteurMessage.formatterMessage(kind, message, opts)
   }
@@ -125,8 +126,10 @@ class MilleGrillesPKI {
     opts = opts || {}
     const optsMessages = {...opts}  // Copie
 
+    console.debug("!!! verifierMessage ", message)
+
     const chaineForge = await this.getCertificatMessage(message, opts)
-    // // Trouver le certificat correspondant au message
+    // Trouver le certificat correspondant au message
     // const fingerprint = message['en-tete'].fingerprint_certificat
     // const chaine = message['_certificat'],
     //       millegrille = message['_millegrille']
@@ -159,8 +162,7 @@ class MilleGrillesPKI {
     // Retourner promise
     const certificat = chaineForge[0]
 
-    const [hachage, signature] = await verifierMessage(message, {certificat})
-    const valide = hachage === true && signature === true
+    const valide = await verifierMessage(message, {certificat})
     return {valide, certificat}
   }
 

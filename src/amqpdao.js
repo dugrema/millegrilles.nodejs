@@ -508,7 +508,7 @@ class MilleGrillesAmqpDAO {
   async _traiterMessage(msg) {
     // Traitement des messages recus sur la Q principale (pas operations longues)
 
-    // debug("Message recu - TEMP - \n%O", msg)
+    debug("Message recu - TEMP - \n%O", msg)
 
     // let messageContent = decodeURIComponent(escape(msg.content));
     const messageContent = msg.content.toString(),
@@ -565,7 +565,7 @@ class MilleGrillesAmqpDAO {
   }
 
   async traiterMessageValide(messageDict, msg, certificat) {
-    debug("Traiter message valide")
+    debug("Traiter message valide ", msg)
 
     const routingKey = msg.fields.routingKey,
           exchange = msg.fields.exchange,
@@ -587,7 +587,10 @@ class MilleGrillesAmqpDAO {
             delete this.pendingResponses[correlationId]
           }
           debug("traiterMessageValide: executer callback")
-          reponse = await callbackInfo.callback(messageDict, null, {certificat})
+          for await (const cb of callbackInfo.callback) {
+            reponse = await cb(messageDict, null, {certificat})
+          }
+          // reponse = await callbackInfo.callback(messageDict, null, {certificat})
           debug("traiterMessageValide: callback termine")
         } else {
           debug("Message recu sur Q (direct), aucun callback pour correlationId %s. Transferer au routingKeyManager.", correlationId)
@@ -906,7 +909,7 @@ class MilleGrillesAmqpDAO {
 
     var correlationId = null
     if( ! opts.nowait ) {
-      correlationId = correlationId // entete['uuid_transaction']
+      correlationId = messageId // entete['uuid_transaction']
     }
     const jsonMessage = JSON.stringify(message)
 
@@ -1136,13 +1139,6 @@ class MilleGrillesAmqpDAO {
 
         infoErreur = {ok: false, 'err': 'mq.timeout', code: 50, correlationId, routingKey, message: jsonMessage}
 
-        // S'assurer qu'on ne fait pas un double-publish sur le meme correlationId
-        if(this.pendingResponses[correlationId]) {
-          infoErreur = null
-          bypassCleanup = true
-          return reject(new Error(`_transmettre double-publish sur correlationId ${correlationId}, abort`))
-        }
-
         // Creer une erreur pour conserver la stack d'appel.
         timeout = setTimeout(
           () => {
@@ -1151,8 +1147,19 @@ class MilleGrillesAmqpDAO {
           },
           EXPIRATION_EMIT_MESSAGE_DEFAUT
         )
+        
+        // S'assurer qu'on ne fait pas un double-publish sur le meme correlationId
+        if(this.pendingResponses[correlationId]) {
+          const existant = this.pendingResponses[correlationId]
+          // Abort duplication, garder meme timeout (ne pas re-emettre)
+          // infoErreur = null
+          // bypassCleanup = true
+          // return reject(new Error(`_transmettre double-publish sur correlationId ${correlationId}, abort`))
+          existant.callback.push(fonction_callback)
+          return  // Juste reutiliser le hook/requete existante
+        }
 
-        this.pendingResponses[correlationId] = {callback: fonction_callback, creationDate: new Date()}
+        this.pendingResponses[correlationId] = {callback: [fonction_callback], creationDate: new Date()}
       }
 
       const exchange = opts.exchange || this.exchange

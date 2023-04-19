@@ -362,7 +362,6 @@ async function veriferUpgradeProtegerApp(socket, params, opts) {
   if(score > 1) {
     // Conserver dans la session qu'on est alle en mode protege
     // Permet de revalider le mode protege avec le certificat de navigateur
-
     const resultat = await verifierSignatureCertificat(
       idmg, params.certificat, challengeSocket, params, {certCa})
 
@@ -442,9 +441,11 @@ async function veriferUpgradeProtegerApp(socket, params, opts) {
 //   return resultat
 // }
 
-async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeBody, opts) {
+async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeRecu, opts) {
   opts = opts || {}
-  debug("verifierSignatureCertificat : idmg=%s, opts: %O", idmg, opts)
+  debug("verifierSignatureCertificat : idmg=%s, challengeRecu: %O, opts: %O", idmg, challengeRecu, opts)
+
+  const challengeBody = JSON.parse(challengeRecu.contenu)
 
   if( ! challengeSession || ! challengeBody ) return false
 
@@ -472,7 +473,7 @@ async function verifierSignatureCertificat(idmg, chainePem, challengeSession, ch
     // Verifier les certificats et la signature du message
     // Permet de confirmer que le client est bien en possession d'une cle valide pour l'IDMG
     debug("authentifierCertificat, cert :\n%O\nchallengeJson\n%O", certificat, challengeBody)
-    const valide = await verifierSignatureMessage(challengeBody, certificat)
+    const valide = await verifierSignatureMessage(challengeRecu, certificat)
     debug("Validation certificat, resultat : %O", valide)
 
     if(valide) {

@@ -8,9 +8,10 @@ const { hacher } = require('./hachage')
  */
  async function fingerprintPublicKeyFromCertPem(pem) {
     const cert = pki.certificateFromPem(pem)
-    const publicKeyBytes = cert.publicKey.publicKeyBytes
-    const fingerprintPk = await hacher(publicKeyBytes, {hashingCode: 'blake2s-256', encoding: 'base58btc'})
-    return fingerprintPk
+    // const publicKeyBytes = cert.publicKey.publicKeyBytes
+    // const fingerprintPk = await hacher(publicKeyBytes, {hashingCode: 'blake2s-256', encoding: 'base58btc'})
+    // return fingerprintPk
+    return  Buffer.from(cert.publicKey.publicKeyBytes).toString('hex')
   }
   
 module.exports = {
