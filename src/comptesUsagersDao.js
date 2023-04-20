@@ -252,7 +252,7 @@ class ComptesUsagers {
   // }
 
   activerDelegationParCleMillegrille = async (_socket, params) => {
-    const {userId, confirmation} = params
+    const {userId, confirmation} = JSON.parse(params.contenu)
     const domaine = 'CoreMaitreDesComptes'
     const action = 'ajouterDelegationSignee'
     const transaction = {
