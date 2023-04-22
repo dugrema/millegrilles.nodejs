@@ -923,7 +923,8 @@ class MilleGrillesAmqpDAO {
 
       if(!msg.content) {
         // Le message a deja ete decode
-        return msg.resultats || msg
+        //return msg.resultats || msg
+        return msg
       }
 
       // Decoder le message
@@ -1127,10 +1128,10 @@ class MilleGrillesAmqpDAO {
 
         debug("Transmettre message, callback sur correlationId=%s, queue=%s", correlationId, properties.replyTo)
         // On a un correlationId, generer promise et callback
-        fonction_callback = function(msg, err) {
+        fonction_callback = function(msg, err, params) {
           if(msg && !err) {
             debugCorrelation("_transmettre Recu reponse %s", correlationId)
-            resolve(msg)
+            resolve(msg, params)
           } else {
             debugCorrelation("_transmettre Rejeter %s", correlationId)
             reject({err, msg})
