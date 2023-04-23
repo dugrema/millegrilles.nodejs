@@ -326,8 +326,9 @@ class MilleGrillesPKI {
     debug("sauvegarderMessageCertificat Message in\n", message_in)    
     let message = message_in
     if(typeof(message) === 'string') message = JSON.parse(message)
+    if(message.contenu) message = JSON.parse(message.contenu)
     let chaine_pem = ''
-    const routage = message.routage || {},
+    const routage = message_in.routage || {},
           action = routage.action
     // const entete = message['en-tete'] || {},
     //       action = entete.action
