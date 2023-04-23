@@ -647,11 +647,13 @@ function getInfoIdmg(socket, params, cb, opts) {
   cb(reponse)
 }
 
-async function getCertificatsMaitredescles(socket, cb) {
+async function getCertificatsMaitredescles(socket) {
   debugConnexions("server6.getCertificatsMaitredescles")
   const amqpdao = socket.amqpdao
   try {
-    return await amqpdao.getCertificatsMaitredescles()
+    const reponse = await amqpdao.getCertificatsMaitredescles()
+    debug("server6.getCertificatsMaitredescles Reponse ", reponse)
+    return reponse
   } catch(err) {
     console.error(new Date() + ' serveur6.getCertificatsMaitredescles Erreur ', err)
     return {ok: false, err: ''+err}

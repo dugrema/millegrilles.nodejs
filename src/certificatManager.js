@@ -118,7 +118,7 @@ class GestionnaireCertificatMessages {
   }
 
   async recevoirCertificatMaitredescles(messageDict) {
-    debug("Sauvegarder message certificat maitre des cles %s", messageDict)
+    debug("recevoirCertificatMaitredescles Sauvegarder message certificat maitre des cles %s", messageDict)
     // Valider le certificat
     try {
       const pem = messageDict['certificat']
@@ -126,15 +126,16 @@ class GestionnaireCertificatMessages {
 
       if(valide) {
         const fingerprint = await hacherCertificat(certificat)
-        debug("Certificat %s valide? %O, cert forge %O", fingerprint, valide, certificat)
+        debug("recevoirCertificatMaitredescles Certificat %s valide? %O, cert forge %O", fingerprint, valide, certificat)
         const extensions = forgecommon.extraireExtensionsMillegrille(certificat)
-        debug("Extensions certificat : ", extensions)
+        debug("recevoirCertificatMaitredesclesExtensions certificat : ", extensions)
         const roles = extensions.roles || []
         if(roles.includes('maitredescles')) {
-          debug("Certificat maitre des cles confirme, on sauvegarde dans le cache")
+          debug("recevoirCertificatMaitredescles Certificat maitre des cles confirme, on sauvegarde dans le cache")
           let entree = this.cacheMaitredescles[fingerprint]
           if(!entree) {
             entree = {fingerprint, pem, certificat, extensions}
+            debug("recevoirCertificatMaitredescles Nouvelle entree ", entree)
             this.cacheMaitredescles[fingerprint] = entree
           }
           entree.dateActivite = new Date()  // Met a jour derniere date activite
