@@ -200,7 +200,7 @@ class GestionnaireCertificatMessages {
       var routingKey = 'MaitreDesCles.certMaitreDesCles';
       const reponse = await this.mq.transmettreRequete(routingKey, {})
       debug("demanderCertificatMaitreDesCles Reponse ", reponse)
-      await this.recevoirCertificatMaitredescles(reponse)
+      await this.recevoirCertificatMaitredescles(reponse['__original'])
     }
 
     // Retourner la liste de certificats connus
