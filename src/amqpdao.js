@@ -724,17 +724,15 @@ class MilleGrillesAmqpDAO {
     return promise;
   }
 
-  transmettreEnveloppeCommande(commandeSignee, domaine, opts) {
+  transmettreEnveloppeCommande(commandeSignee, opts) {
     opts = opts || {}
 
     const jsonMessage = JSON.stringify(commandeSignee);
     let correlation = null
     const routage = commandeSignee.routage || {}
     let partition = opts.partition || routage.partition,
-        action = opts.action || routage.action
-
-    // Utiliser domaine de l'entete au besoin
-    domaine = domaine || routage.domaine
+        action = opts.action || routage.action,
+        domaine = opts.domaine || routage.domaine
 
     if(!opts.nowait) {
       correlation = commandeSignee.id  //entete['uuid_transaction']
@@ -1259,10 +1257,15 @@ class MilleGrillesAmqpDAO {
   estExpire(message, opts) {
     /* Verifie si le message est expire (contextuel) */
     opts = opts || {}
+
+    if(message['__original']) message = message['__original']
+
     const expiration = opts.expiration || EXPIRATION_MESSAGE_DEFAUT  // expiration en millisecs
     const epochCourant = new Date().getTime()
     const estampille = message.estampille * 1000  // message['en-tete'].estampille * 1000
     const tempsExpire = epochCourant - expiration
+
+    debug("estExpire estampille %s, expiration %s", estampille, tempsExpire)
 
     if(estampille > epochCourant) {
       throw new Error("Message avec une date future %d (epoch)", estampille)
