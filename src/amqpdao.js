@@ -527,7 +527,7 @@ class MilleGrillesAmqpDAO {
     if( routingKey && routingKey === MG_ROUTING_EMETTRE_CERTIFICAT ) {
       // Sauvegarder le certificat localement pour usage futur
       const fingerprint = messageDict.fingerprint
-      debug("Certificat recu (non sollicite) : " + fingerprint)
+      debug("Certificat recu %s (non sollicite) %O : %O", fingerprint, messageDict)
       try {
         await this.certificatManager.sauvegarderMessageCertificat(messageDict, fingerprint)
       } catch(err) {

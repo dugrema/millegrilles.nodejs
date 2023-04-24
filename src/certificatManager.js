@@ -1,4 +1,4 @@
-const debug = require('debug')('millegrilles:common:certificatmanager')
+const debug = require('debug')('millegrilles:certificatmanager')
 // import { pki } from '@dugrema/node-forge'
 const { hacherCertificat } = require('./hachage')
 const forgecommon = require('@dugrema/millegrilles.utiljs/src/forgecommon')
@@ -92,7 +92,13 @@ class GestionnaireCertificatMessages {
     // Note : la sauvegarde lance une erreur si la chaine est invalide
     const message = {...messageContent}
     if(message.chaine_pem) message['certificat'] = undefined // Retirer _certificat pour lire chaine_pem
-    await this.pki.sauvegarderMessageCertificat(message, fingerprint)
+
+    let fingerprintCalcule = await this.pki.sauvegarderMessageCertificat(message, fingerprint)
+    if(!fingerprint) fingerprint = fingerprintCalcule
+    else if(fingerprint !== fingerprintCalcule) {
+      console.warn("sauvegarderMessageCertificat Mismatch fingerprint recu (%s) et calcule (%s) - on utilise le calcule", fingerprint, fingerprintCalcule)
+      fingerprint = fingerprintCalcule
+    }
 
     // Charger le certificat recu est valide (aucune erreur lancee)
     // On le charge a partir de pki avec instruction nowait=true (pour eviter recursion infinie)

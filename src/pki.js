@@ -322,7 +322,7 @@ class MilleGrillesPKI {
   }
 
   // Sauvegarde un message de certificat en format JSON
-  async sauvegarderMessageCertificat(message_in, fingerprintBase58, opts) {
+  async sauvegarderMessageCertificat(message_in, fingerprint_in, opts) {
     opts = opts || {}
     debug("sauvegarderMessageCertificat Message in\n", message_in)    
     let message = message_in
@@ -350,23 +350,24 @@ class MilleGrillesPKI {
       throw new Error("Erreur reception certificat attache, mauvais format.")
     }
 
-    if(!fingerprintBase58) {
+    if(!fingerprint_in) {
       // Calculer hachage du cerficat
       const cert = pki.certificateFromPem(chaine_pem[0])
-      fingerprintBase58 = await hacherCertificat(cert)
+      fingerprint_in = await hacherCertificat(cert)
+      debug("sauvegarderMessageCertificat Fingerprint calcule ", fingerprint_in)
     }
 
     // debug("sauvegarderMessageCertificat, fichier %s existe? %s", fingerprintBase58, fichierExiste)
     let fichierExiste = false
-    const cleCert = 'certificat_v1:' + fingerprintBase58
+    const cleCert = 'certificat_v1:' + fingerprint_in
 
     debug("sauvegarderMessageCertificat %s", cleCert)
 
     if(this.redisClient) {
-      debug("Sauvegarder/touch certificat dans client redis : %s", fingerprintBase58)
+      debug("Sauvegarder/touch certificat dans client redis : %s", fingerprint_in)
       const resultat = await this.redisClient.expire(cleCert, EXPIRATION_REDIS_CERT)
       fichierExiste = resultat > 0
-      debug("Certificat %s existe?%s", fingerprintBase58, fichierExiste)
+      debug("Certificat %s existe?%s", fingerprint_in, fichierExiste)
     }
 
     if( ! fichierExiste ) {
@@ -398,21 +399,21 @@ class MilleGrillesPKI {
         }
 
         // Informatif seulement : verifier si c'est bien le certificat qui a ete demande
-        if(fingerprint !== fingerprintBase58) {
-          debug(`WARN: Certificat ${fingerprint} sauvegarde localement, mais ne correspond pas au fingerprint demande ${fingerprintBase58}`)
+        if(fingerprint !== fingerprint_in) {
+          debug(`WARN: Certificat ${fingerprint} sauvegarde localement, mais ne correspond pas au fingerprint demande ${fingerprint_in}`)
         }
 
-        debug("sauvegarderMessageCertificat Cert %s sauvegarde", fingerprintBase58)
+        debug("sauvegarderMessageCertificat Cert %s sauvegarde", fingerprint_in)
 
-        return fingerprintBase58
+        return fingerprint_in
 
       } else {
-        throw new Error(`Erreur validation certificat recu : ${fingerprintBase58}`)
+        throw new Error(`Erreur validation certificat recu : ${fingerprint_in}`)
       }
 
     } else {
-      debug("Certificat (%s) existe deja dans redis", fingerprintBase58)
-      return fingerprintBase58
+      debug("Certificat (%s) existe deja dans redis", fingerprint_in)
+      return fingerprint_in
     }
   }
 
