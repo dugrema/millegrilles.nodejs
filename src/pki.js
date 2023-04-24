@@ -1,4 +1,5 @@
-const debug = require('debug')('millegrilles:common:pki')
+const debug = require('debug')('millegrilles:pki')
+const debugMessages = require('debug')('millegrilles:pki:messages')
 
 const { base64 } = require('multiformats/bases/base64')
 const { pki } = require('@dugrema/node-forge')
@@ -126,7 +127,7 @@ class MilleGrillesPKI {
     opts = opts || {}
     const optsMessages = {...opts}  // Copie
 
-    console.debug("!!! verifierMessage ", message)
+    debugMessages("verifierMessage ", message)
 
     const chaineForge = await this.getCertificatMessage(message, opts)
     // Trouver le certificat correspondant au message

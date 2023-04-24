@@ -443,7 +443,7 @@ class MilleGrillesAmqpDAO {
       if(configExistante.tag) {
         await this.channel.cancel(configExistante.tag)
       }
-      console.warn("!!! nodejs.amqpdao.ajouterQueueCustom TODO Cleanup vieille Q pour nom ", nomQ)
+      console.warn("nodejs.amqpdao.ajouterQueueCustom TODO Cleanup vieille Q pour nom ", nomQ)
     }
     // Changer config
     this.qCustom[nomQ] = configQ
