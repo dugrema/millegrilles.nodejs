@@ -288,6 +288,8 @@ class ComptesUsagers {
   signerRecoveryCsr = async (socket, commande) => {
     // const session = socket.handshake.session
     // debug("!!! \nSOCKET\n%O", socket)
+    debug("signerRecoveryCsr ", commande)
+    const contenu = JSON.parse(commande.contenu)
 
     // Supporter session.nomUsager pour enregistrement usager maitrcomptes
     const session = socket.handshake.session || {}
@@ -300,9 +302,9 @@ class ComptesUsagers {
 
     // Charger usager
     const webauthnChallenge = socket.webauthnChallenge,
-          clientAssertionResponse = commande.clientAssertionResponse,
-          demandeCertificat = commande.demandeCertificat,
-          userId = commande.userId
+          clientAssertionResponse = contenu.clientAssertionResponse,
+          demandeCertificat = contenu.demandeCertificat,
+          userId = contenu.userId
 
     if(webauthnChallenge) {
       // Signature webauthn par l'usager du compte. Verifier avant de passer sur MQ.
@@ -313,8 +315,8 @@ class ComptesUsagers {
       // Verification du challenge
       try {
         await verifierChallenge(webauthnChallenge, compteUsager, clientAssertionResponse, {demandeCertificat})
-        debug("Transmettre commande recovery CSR\n%O", commande)
-        return transmettreCommande(socket, commande, action, {domaine})
+        debug("Transmettre commande recovery CSR\n%O", contenu)
+        return transmettreCommande(socket, contenu, action, {domaine})
       } catch(err) {
         debug("signerRecoveryCsr Erreur verification: %O", err)
         return {ok: false, 'err': 'Erreur verification challenge webauthn'}
