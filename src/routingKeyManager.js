@@ -56,7 +56,8 @@ class RoutingKeyManager {
     const {properties, fields, certificat} = opts
 
     let callbackEntry = this.registeredRoutingKeyCallbacks[routingKey]
-    const correlationId = properties.correlationId
+    const correlationId = properties.correlationId,
+          replyTo = properties.replyTo
     const json_message = JSON.parse(messageContent)
 
     debug("RoutingKeyManager Message recu rk: %s, correlationId: %s, callback present?%s", routingKey, correlationId, callbackEntry?'true':'false')
@@ -135,6 +136,7 @@ class RoutingKeyManager {
             routingKey,
             message: json_message,
             exchange: exchange,
+            properties: {replyTo, correlationId}
           }
           if(properties.correlationId) {
             contenuEvenement[correlationId] = properties.correlationId

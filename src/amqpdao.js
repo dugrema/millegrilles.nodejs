@@ -514,7 +514,8 @@ class MilleGrillesAmqpDAO {
     const messageContent = msg.content.toString(),
           routingKey = msg.fields.routingKey,
           exchange = msg.fields.exchange,
-          correlationId = msg.properties.correlationId
+          correlationId = msg.properties.correlationId,
+          replyTo = msg.properties.replyTo
     const messageDict = JSON.parse(messageContent)
 
     debugMessages("Message recu sur Q principale :\n  routing keys : %O\n  exchange : %s\n  correlation id : %s\n%O",
@@ -551,6 +552,8 @@ class MilleGrillesAmqpDAO {
           // Parse enveloppe message pour extraire le champ contenu et parser
           const contenu = JSON.parse(messageDict.contenu)
           contenu['__original'] = messageDict
+          contenu['__reply_to'] = replyTo
+          contenu['__correlation_id'] = correlationId
           await this.traiterMessageValide(contenu, msg, resultatVerification.certificat)
         } else {
           await this.traiterMessageInvalide(messageDict, msg)
