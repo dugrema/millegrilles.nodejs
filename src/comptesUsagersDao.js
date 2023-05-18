@@ -315,8 +315,8 @@ class ComptesUsagers {
       // Verification du challenge
       try {
         await verifierChallenge(webauthnChallenge, compteUsager, clientAssertionResponse, {demandeCertificat})
-        debug("Transmettre commande recovery CSR\n%O", contenu)
-        return transmettreCommande(socket, contenu, action, {domaine})
+        debug("Transmettre commande recovery CSR\n%O", commande)
+        return transmettreCommande(socket, commande, action, {domaine})
       } catch(err) {
         debug("signerRecoveryCsr Erreur verification: %O", err)
         return {ok: false, 'err': 'Erreur verification challenge webauthn'}
