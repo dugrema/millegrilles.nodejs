@@ -1125,6 +1125,8 @@ class MilleGrillesAmqpDAO {
 
       if(correlationId) {
 
+        const timeoutReponse = opts.timeout || EXPIRATION_EMIT_MESSAGE_DEFAUT
+
         properties.correlationId = correlationId
 
         debug("Transmettre message, callback sur correlationId=%s, queue=%s", correlationId, properties.replyTo)
@@ -1147,7 +1149,7 @@ class MilleGrillesAmqpDAO {
             console.error("AMQPDAO ERROR timeout sur correlationId:%s, stack appel : %O", correlationId, infoErreur.stack)
             fonction_callback(null, infoErreur)
           },
-          EXPIRATION_EMIT_MESSAGE_DEFAUT
+          timeoutReponse
         )
         
         // S'assurer qu'on ne fait pas un double-publish sur le meme correlationId
