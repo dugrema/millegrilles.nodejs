@@ -259,7 +259,7 @@ function middlewareReadyFichier(amqpdao, opts) {
         debug("middlewareReadyFichier Traitement post %s upload %O", correlation, informationFichier)
       
         const commandeMaitreCles = informationFichier.cles
-        const transactionContenu = informationFichier.transaction
+        const transactionContenu = informationFichier.transaction || req.transaction
         const etat = informationFichier.etat || {},
               hachage = etat.hachage || correlation
         
