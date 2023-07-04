@@ -1,7 +1,8 @@
 const debugLib = require('debug')
 
-const debug = debugLib('millegrilles:routingKeyManager')
-const debugMessages = debugLib('millegrilles:routingKeyManager:messages')
+const debug = debugLib('routingKeyManager')
+const debugRooms = debugLib('routingKeyManager:rooms')
+const debugMessages = debugLib('routingKeyManager:messages')
 
 const L1PUBLIC = '1.public'
 const TYPES_MESSAGES_ROOM_ACCEPTES = ['evenement', 'transaction', 'commande']
@@ -117,12 +118,15 @@ class RoutingKeyManager {
           }
 
           // Ajouter les mappers custom
-          Object.values(customRoomMappers).map(mapper=>{
+          Object.values(customRoomMappers).forEach(mapper=>{
+            debugRooms("Test mapper %s pour routingKey %s", mapper, routingKey)
             if( mapper.exchanges && ! mapper.exchanges.includes(exchange) ) return
             if( mapper.routingKeyTest.test(routingKey) ) {
-              const roomName = mapper.mapRoom(json_message, routingKey, correlationId, exchange)
+              const contenu = JSON.parse(json_message.contenu)
+              const roomName = mapper.mapRoom(contenu, routingKey, correlationId, exchange)
+              debugRooms("Mapper routingKey match %s -> room %s", routingKey, roomName)
               if(roomName) {
-                debug("Emettre mesasge sur room custom %s", roomName)
+                debugRooms("Emettre message sur room custom %s", roomName)
                 roomsExact.push(roomName)
               }
             }
@@ -141,7 +145,7 @@ class RoutingKeyManager {
           if(properties.correlationId) {
             contenuEvenement[correlationId] = properties.correlationId
           }
-          debugMessages("Emission evenement sur rooms %s Socket.IO\n%O", roomsExact, contenuEvenement)
+          debugRooms("Emission evenement sur rooms %s Socket.IO\n%O", roomsExact, contenuEvenement)
 
           // room.emit('mq_evenement', contenuEvenement)
 
@@ -150,7 +154,7 @@ class RoutingKeyManager {
           const rkSplit = routingKey.split('.')
           const nomAction = rkSplit[rkSplit.length-1]
           const domaineAction = [rkSplit[0], rkSplit[1], nomAction].join('.')
-          debugMessages("Emission evenement rooms %s Socket.IO domaineAction %s\n%O", roomsExact, domaineAction, contenuEvenement)
+          debugRooms("Emission evenement rooms %s Socket.IO domaineAction %s\n%O", roomsExact, domaineAction, contenuEvenement)
           room.emit(domaineAction, contenuEvenement)
 
           // Rooms avec wildcards (evenements seulement)
@@ -158,25 +162,25 @@ class RoutingKeyManager {
             // Room pour toutes les actions d'un domaine
             const eventNameToutesActionsDomaine = [...splitKey.slice(0, 2), '*'].join('.')
             const nomRoomToutesActionsDomaine = exchange + '/' + eventNameToutesActionsDomaine
-            debug("Emettre sur %s", eventNameToutesActionsDomaine)
+            debugRooms("Emettre sur %s", eventNameToutesActionsDomaine)
             this.socketio.to(nomRoomToutesActionsDomaine).emit(eventNameToutesActionsDomaine, contenuEvenement)
 
             // Room pour tous les domaines avec une action
             const eventNameTousDomainesAction = [splitKey[0], '*', [...splitKey].pop()].join('.')
             const roomTousDomainesAction = exchange + '/' + eventNameTousDomainesAction
-            debug("Emettre sur %s", eventNameTousDomainesAction)
+            debugRooms("Emettre sur %s", eventNameTousDomainesAction)
             this.socketio.to(roomTousDomainesAction).emit(eventNameTousDomainesAction, contenuEvenement)
           }
 
         } else {
-          debug("Dropped message exchange %s, routing %s", exchange, routingKey)
+          debugMessages("Dropped message exchange %s, routing %s", exchange, routingKey)
         }
       } catch (err) {
         console.error("Erreur traitement message recu:\n%O", err)
       }
 
     } else {
-      debug("Routing key pas de callback: %s", routingKey);
+      debugMessages("Routing key pas de callback: %s", routingKey);
     }
 
     return promise
@@ -316,7 +320,7 @@ class RoutingKeyManager {
 
       const roomsParamsParBinding = {}
 
-      debug("Rooms evenements : %O", Object.keys(this.roomsEvenements))
+      debugRooms("Rooms evenements : %O", Object.keys(this.roomsEvenements))
 
       // Faire la liste des routing keys d'evenements
       for(let roomName in this.roomsEvenements) {
@@ -339,36 +343,36 @@ class RoutingKeyManager {
           // debug("!!! Room verif %s, roomCOnfig.roomName: %s, binding: %s, param: %s, socketRoom : %O", roomName, roomConfig.roomName, roomBinding, roomParam, socketRoom)
           if(socketRoom) roomsParamsParBinding[roomBinding].compteur++
         } else if(!socketRoom) {
-          debug("Nettoyage room %s, retrait routing key %s", roomConfig.roomName, routingKeyName)
+          debugRooms("Nettoyage room %s, retrait routing key %s", roomConfig.roomName, routingKeyName)
           this.mq.channel.unbindQueue(replyQ, exchange, routingKeyName);
         } else {
           // debug("Routing key %s, room %s, %d membres", routingKeyName, roomConfig.roomName, socketRoom.size)
         }
 
         if(!socketRoom) {
-          debug("Supprimer la room %s pour eviter nettoyages subsequents", roomName)
+          debugRooms("Supprimer la room %s pour eviter nettoyages subsequents", roomName)
           delete this.roomsEvenements[roomName]
         }
       }
 
-      debug("Rooms par binding avec params : %O", roomsParamsParBinding)
+      debugRooms("Rooms par binding avec params : %O", roomsParamsParBinding)
       Object.keys(roomsParamsParBinding).map(binding=>{
         const info = roomsParamsParBinding[binding]
         if(info.compteur === 0) {
-          debug("Retrait binding %s", binding)
+          debugRooms("Retrait binding %s", binding)
           this.mq.channel.unbindQueue(info.replyQ, info.exchange, info.routingKeyName);
         }
       })
 
       // const rooms = this.socketio.sockets.rooms
       // debug("SocketIO rooms: %s", rooms)
-      debug("Entretien rooms, nb rooms : %O", rooms.size)
+      debugRooms("Entretien rooms, nb rooms : %O", rooms.size)
       for(let room of rooms.keys()) {
         const roomInfo = rooms.get(room)
-        debug("Room %s, %d membres", room, roomInfo.size)
+        debugRooms("Room %s, %d membres", room, roomInfo.size)
       }
     } else {
-      debug("Aucun entretien rooms, pas de socketio")
+      debugRooms("Aucun entretien rooms, pas de socketio")
     }
   }
 
