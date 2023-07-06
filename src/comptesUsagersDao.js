@@ -156,17 +156,16 @@ class ComptesUsagers {
     debug("Transaction changer mot de passe de %s completee", nomUsager)
   }
 
-  ajouterCle = async (nomUsager, cle, reponseClient, opts) => {
+  ajouterCle = async (nomUsager, cle, reponseClient, token, opts) => {
     opts = opts || {}
     const domaine = 'CoreMaitreDesComptes'
     const action = 'ajouterCle'
-    const transaction = {nomUsager, cle, reponseClient, ...opts}
+    const transaction = {nomUsager, cle, reponseClient, token_autorisation: token, ...opts}
     if(opts.resetCles) {
       transaction['reset_cles'] = true
     }
     debug("Transaction ajouter cle U2F pour %s", nomUsager)
-    await this.amqDao.transmettreCommande(domaine, transaction, {action})
-    debug("Transaction ajouter cle U2F pour %s completee", nomUsager)
+    return await this.amqDao.transmettreCommande(domaine, transaction, {action})
   }
 
   supprimerCles = async (nomUsager) => {
