@@ -11,10 +11,15 @@ const DOMAINE_MAITRECOMPTES = 'CoreMaitreDesComptes',
 
 class ComptesUsagers {
 
-  constructor(amqDao) {
+  constructor(amqDao, opts) {
+    opts = opts || {}
+    const { hostname } = opts
     this.amqDao = amqDao
     this.idmg = amqDao.pki.idmg
     this.proprietairePresent = false
+
+    this.hostname = hostname
+    console.info("ComptesUsagers init hostname : ", this.hostname)
   }
 
   infoMillegrille = async () => {
@@ -27,21 +32,23 @@ class ComptesUsagers {
     opts = opts || {}
     if( ! nomUsager ) throw new Error("Usager undefined")
 
-    const hostname = opts.hostname
+    const hostname = opts.hostname || this.hostname
 
     const domaine = 'CoreMaitreDesComptes'
     const action = 'chargerUsager'
 
-    const requete = {nomUsager}
+    const requete = {nomUsager, hostUrl: hostname}
     debug("Requete compte usager %s (fingerprintPublicNouveau : %s, fingerprintPublicCourant: %s, hostname: %s)", 
       nomUsager, fingerprintPublicNouveau, fingerprintPublicCourant, hostname)
 
     const promiseCompteUsager = this.amqDao.transmettreRequete(
       domaine, requete, {action, decoder: true, attacherCertificat: true})
-      .then(compteUsager=>{
+      .then(reponse=>{
 
-        if(compteUsager.nomUsager) {
-          debug("Requete compte usager, recu %s : %s", nomUsager, compteUsager)
+        const compte = reponse.compte
+        if(compte) {
+
+          debug("Requete compte usager, recu %s : %s", compte.nomUsager, reponse)
 
           // if(fingerprintPublicCourant && compteUsager.activations_par_fingerprint_pk) {
           //   // Verifier si l'usager peut utiliser un nouveau certificat pour bypasser
@@ -52,7 +59,7 @@ class ComptesUsagers {
           //   }
           // }
 
-          return compteUsager
+          return reponse
         } else {
           debug("Requete compte usager, compte %s inexistant", nomUsager)
           return false
@@ -88,15 +95,15 @@ class ComptesUsagers {
     }
 
     // Combiner webauthn par hostname si disponible
-    const webauthn_hostnames = valeurs.webauthn_hostnames
-    let webauthn = valeurs.webauthn || []
-    if(webauthn_hostnames && hostname) {
-      const hostname_converti = hostname.replaceAll('.', '_')
-      if(webauthn_hostnames[hostname_converti]) {
-        debug("Remplacer webauthn (%O) par (%s: %O)", webauthn, hostname_converti, webauthn_hostnames[hostname_converti])
-        webauthn = webauthn_hostnames[hostname_converti]
-      }
-    }
+    // const webauthn_hostnames = valeurs.webauthn_hostnames
+    // let webauthn = valeurs.webauthn || []
+    // if(webauthn_hostnames && hostname) {
+    //   const hostname_converti = hostname.replaceAll('.', '_')
+    //   if(webauthn_hostnames[hostname_converti]) {
+    //     debug("Remplacer webauthn (%O) par (%s: %O)", webauthn, hostname_converti, webauthn_hostnames[hostname_converti])
+    //     webauthn = webauthn_hostnames[hostname_converti]
+    //   }
+    // }
 
     debug("Compte usager charge : %O", valeurs)
     return valeurs
@@ -156,16 +163,21 @@ class ComptesUsagers {
     debug("Transaction changer mot de passe de %s completee", nomUsager)
   }
 
-  ajouterCle = async (nomUsager, cle, reponseClient, token, opts) => {
-    opts = opts || {}
+  ajouterCle = async reponseClient => {
+    // opts = opts || {}
+
+    if( ! reponseClient.sig ) {
+      throw new Error("La reponse client doit etre signee par le navigateur")
+    }
+
     const domaine = 'CoreMaitreDesComptes'
     const action = 'ajouterCle'
-    const transaction = {nomUsager, cle, reponseClient, token_autorisation: token, ...opts}
-    if(opts.resetCles) {
-      transaction['reset_cles'] = true
-    }
-    debug("Transaction ajouter cle U2F pour %s", nomUsager)
-    return await this.amqDao.transmettreCommande(domaine, transaction, {action})
+
+    // Creer une commande comme enveloppe - confirme que la transaction a ete validee
+    const commande = {transaction: reponseClient}
+    debug("Commande ajouter cle U2F : %O", commande)
+
+    return await this.amqDao.transmettreCommande(domaine, commande, {action})
   }
 
   supprimerCles = async (nomUsager) => {
@@ -340,8 +352,9 @@ class ComptesUsagers {
 }
 
 // Fonction qui injecte l'acces aux comptes usagers dans req
-function injecter(amqDao) {
-  const comptesUsagers = new ComptesUsagers(amqDao)
+function injecter(amqDao, opts) {
+  opts = opts || {}
+  const comptesUsagers = new ComptesUsagers(amqDao, opts)
 
   const injecterComptesUsagers = async (req, res, next) => {
     debug("Injection req.comptesUsagers")

@@ -78,12 +78,13 @@ async function server6(app, configurerEvenements, opts) {
   }
   if(portEnv) urlHost.port = Number(portEnv)
   port = urlHost.port || 443
+  hostname = urlHost.hostname
   // const urlHost = publicUrl?new URL(publicUrl):new URL(`https://${hostnameEnv}:${portEnv}`)
   // if(portEnv) urlHost.port = Number(portEnv)
   // const hostname = urlHost.hostname,
   //       port = urlHost.port || 443
 
-  debug("server6.initialiser Utilisation hostname %s, exchange %s", hostname, exchange)
+  debug("server6.initialiser Utilisation urlHost %s, exchange %s", urlHost, exchange)
 
   // Charger PKI
   const instPki = new MilleGrillesPKI()
@@ -161,7 +162,7 @@ async function server6(app, configurerEvenements, opts) {
   }
 
   // Injecter DAOs
-  const {comptesUsagersDao} = initComptesUsagers(amqpdao)
+  const {comptesUsagersDao} = initComptesUsagers(amqpdao, {hostname})
   app.use((req, res, next)=>{
     req.amqpdao = amqpdao
     req.comptesUsagersDao = comptesUsagersDao

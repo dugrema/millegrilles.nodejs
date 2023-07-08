@@ -70,38 +70,43 @@ async function verifierUsager(socket, params) {
     }
     reponse.challengeCertificat = challengeCertificat
 
-    if(compteUsager.webauthn) {
-      // Generer un challenge U2F
-      debug("Information cle usager : %O, hostname: %s", compteUsager.webauthn, hostnameRequest)
-      const challengeWebauthn = await genererChallenge(methodesDisponibles, {hostname: hostnameRequest})
+    reponse.registration_challenge = infoUsager.registration_challenge
+    reponse.authentication_challenge = infoUsager.authentication_challenge
 
-      // On ne remplace pas le challenge s'il existe deja
-      if(!socket[CONST_WEBAUTHN_CHALLENGE]) {
-        // Conserver challenge pour verif
-        socket[CONST_WEBAUTHN_CHALLENGE] = {
-          challenge: challengeWebauthn.challenge, 
-          rpId: hostnameRequest, 
-          // allowCredentials: challengeWebauthn.allowCredentials
-        }
-      }
+    // if(compteUsager.registration) {
+    //   // Generer un challenge U2F
+    //   debug("Information cle usager : %O, hostname: %s", compteUsager.webauthn, hostnameRequest)
+    //   // const challengeWebauthn = await genererChallenge(methodesDisponibles, {hostname: hostnameRequest})
 
-      // Reutiliser challenge, inclure credentials
-      reponse.challengeWebauthn = {
-        ...socket[CONST_WEBAUTHN_CHALLENGE],
-        allowCredentials: challengeWebauthn.allowCredentials
-      }
-    }
+    //   // // On ne remplace pas le challenge s'il existe deja
+    //   // if(!socket[CONST_WEBAUTHN_CHALLENGE]) {
+    //   //   // Conserver challenge pour verif
+    //   //   socket[CONST_WEBAUTHN_CHALLENGE] = {
+    //   //     challenge: challengeWebauthn.challenge, 
+    //   //     rpId: hostnameRequest, 
+    //   //     // allowCredentials: challengeWebauthn.allowCredentials
+    //   //   }
+    //   // }
+
+    //   // // Reutiliser challenge, inclure credentials
+    //   // reponse.challengeWebauthn = {
+    //   //   ...socket[CONST_WEBAUTHN_CHALLENGE],
+    //   //   allowCredentials: challengeWebauthn.allowCredentials
+    //   // }
+    //   reponse.registration = registration
+    // }
 
     // Attacher le nouveau certificat de l'usager si disponible
     if(compteUsager.certificat) {
       reponse.certificat = compteUsager.certificat
     }
 
-    const activations = compteUsager.activations_par_fingerprint_pk || {},
+    // const activations = compteUsager.activations_par_fingerprint_pk || {},
+    const activations = compteUsager.activations || {},    
           activation = activations[fingerprintCourant]
     if(activation) {
       // Filtrer methodes d'activation
-      reponse.activation = {...activation, fingerprint: fingerprintCourant}
+      reponse.activation = {...activation, fingerprint: fingerprintCourant, valide: true}
     }
 
     return reponse
@@ -149,11 +154,14 @@ function auditMethodesDisponibles(compteUsager, opts) {
   if( opts.socket && opts.socket.session && opts.socket.session[CONST_AUTH_PRIMAIRE] ) {
     // Certificat est toujours disponible pour l'upgrade socket
     methodesDisponibles.certificat = true
-  } else if(compteUsager.activations_par_fingerprint_pk) {
+  // } else if(compteUsager.activations_par_fingerprint_pk) {
+  } else if(compteUsager.activations) {
     // Certificat est disponible pour un appareil qui vient d'etre active
     var auMoins1actif = false
-    for(let fp in compteUsager.activations_par_fingerprint_pk) {
-      const info = compteUsager.activations_par_fingerprint_pk[fp]
+    // for(let fp in compteUsager.activations_par_fingerprint_pk) {
+    //   const info = compteUsager.activations_par_fingerprint_pk[fp]
+    for(let fp in compteUsager.activations) {
+      const info = compteUsager.activations[fp]
       auMoins1actif |= !info.associe
     }
     if(auMoins1actif) {
