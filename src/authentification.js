@@ -45,7 +45,7 @@ async function verifierUsager(socket, params) {
   }
 
   const infoUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager, fingerprintPk, null, {hostname})
-  const compteUsager = infoUsager
+  const compteUsager = infoUsager.compte
 
   debug("Compte usager recu : %O", infoUsager)
 
@@ -59,17 +59,23 @@ async function verifierUsager(socket, params) {
       methodesDisponibles: Object.keys(methodesDisponibles).filter(item=>!item.startsWith('webauthn.')),
     }
 
-    var challengeCertificat = socket[CONST_CHALLENGE_CERTIFICAT]
-    if(!challengeCertificat) {
-      // On n'a pas de challenge en session, le generer maintenant
-      challengeCertificat = {
-        date: new Date().getTime(),
-        data: Buffer.from(randomBytes(32)).toString('base64'),
-      }
-      socket[CONST_CHALLENGE_CERTIFICAT] = challengeCertificat
-    }
-    reponse.challengeCertificat = challengeCertificat
+    session.userId = compteUsager.userId
 
+    // var challengeCertificat = socket[CONST_CHALLENGE_CERTIFICAT]
+    // if(!challengeCertificat) {
+    //   // On n'a pas de challenge en session, le generer maintenant
+    //   challengeCertificat = {
+    //     date: new Date().getTime(),
+    //     data: Buffer.from(randomBytes(32)).toString('base64'),
+    //   }
+    //   socket[CONST_CHALLENGE_CERTIFICAT] = challengeCertificat
+    // }
+    // reponse.challengeCertificat = challengeCertificat
+
+    // Conserver passkey_authentication pour verifier localement avant d'emettre vers back-end
+    session.passkey_authentication = infoUsager.passkey_authentication
+
+    // Tranferer information client vers reponse
     reponse.registration_challenge = infoUsager.registration_challenge
     reponse.authentication_challenge = infoUsager.authentication_challenge
 

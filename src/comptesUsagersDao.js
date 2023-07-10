@@ -142,7 +142,45 @@ class ComptesUsagers {
     const action = 'chargerUsager'
 
     return transmettreRequete(socket, requete, action, {domaine})
-  }  
+  }
+
+  authentifierWebauthn = (socket, commande, challenge) => {
+    // Utilise la signature de l'usager pour charger son compte
+
+    const session = socket.handshake.session,
+          hostname = socket.handshake.headers.host
+    debug("Session : ", session)
+    const userId = session.userId
+
+    if(!userId) {
+      debug("UserId absent")
+      return {ok: false, err: 'userId absent de la session (compteUsager absent)'}
+    }
+
+    const enveloppeCommande = { userId, hostname, challenge, reponseWebauthn: commande }
+    // if(!commande.sig) {
+    //   // La commande n'est pas signee. Le navigateur n'a pas de certificat - s'assurer qu'il en demande un.
+    //   if(!commande.certificat) {
+    //     return {ok: false, err: 'Signature de message "authentifierWebauthn" absente et aucun certificat demande'}
+    //   } else {
+    //     enveloppeCommande.demandeCertificat = commande  // On utilise le format non-signe qui demande un certificat
+    //   }
+    // } else {
+    //   enveloppeCommande.reponseWebauthn = commande  // Reponse au challenge d'authentification pour login
+    // }
+
+    const domaine = DOMAINE_MAITRECOMPTES
+    const action = 'authentifierWebauthn'
+
+    debug("authentifierWebauthn commande %O", enveloppeCommande)
+    // return transmettreCommande(socket, enveloppeCommande, action, {domaine})
+
+    return socket.amqpdao.transmettreCommande(
+      domaine, 
+      enveloppeCommande, 
+      {action, exchange: '2.prive', decoder: true}
+    )
+  }
 
   inscrireCompte = async (nomUsager, userId, fingerprintPk, securite, csr) => {
     const domaine = 'CoreMaitreDesComptes'
