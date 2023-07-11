@@ -3,9 +3,6 @@ const debug = require('debug')('common:comptesUsagersDao')
 const { extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
 const { verifierChallenge } = require('./webauthn')
 
-// const debug = debugLib('millegrilles:common:dao:comptesUsagersDao')
-//const { extraireInformationCertificat } = forgecommon
-
 const DOMAINE_MAITRECOMPTES = 'CoreMaitreDesComptes',
       L2Prive = '2.prive'
 
@@ -16,7 +13,7 @@ class ComptesUsagers {
     const { hostname } = opts
     this.amqDao = amqDao
     this.idmg = amqDao.pki.idmg
-    this.proprietairePresent = false
+    // this.proprietairePresent = false
 
     this.hostname = hostname
     console.info("ComptesUsagers init hostname : ", this.hostname)
@@ -47,18 +44,7 @@ class ComptesUsagers {
 
         const compte = reponse.compte
         if(compte) {
-
           debug("Requete compte usager, recu %s : %s", compte.nomUsager, reponse)
-
-          // if(fingerprintPublicCourant && compteUsager.activations_par_fingerprint_pk) {
-          //   // Verifier si l'usager peut utiliser un nouveau certificat pour bypasser
-          //   // l'authentification forte (e.g. account recovery)
-          //   const etatAssociation = compteUsager.activations_par_fingerprint_pk[fingerprintPublicCourant] || {}
-          //   if(etatAssociation.associe === false) {
-          //     compteUsager.bypassActif = true
-          //   }
-          // }
-
           return reponse
         } else {
           debug("Requete compte usager, compte %s inexistant", nomUsager)
@@ -93,17 +79,6 @@ class ComptesUsagers {
         // cote serveur pour confirmer la demande de signature.
       }
     }
-
-    // Combiner webauthn par hostname si disponible
-    // const webauthn_hostnames = valeurs.webauthn_hostnames
-    // let webauthn = valeurs.webauthn || []
-    // if(webauthn_hostnames && hostname) {
-    //   const hostname_converti = hostname.replaceAll('.', '_')
-    //   if(webauthn_hostnames[hostname_converti]) {
-    //     debug("Remplacer webauthn (%O) par (%s: %O)", webauthn, hostname_converti, webauthn_hostnames[hostname_converti])
-    //     webauthn = webauthn_hostnames[hostname_converti]
-    //   }
-    // }
 
     debug("Compte usager charge : %O", valeurs)
     return valeurs
@@ -158,22 +133,10 @@ class ComptesUsagers {
     }
 
     const enveloppeCommande = { userId, hostname, challenge, reponseWebauthn: commande }
-    // if(!commande.sig) {
-    //   // La commande n'est pas signee. Le navigateur n'a pas de certificat - s'assurer qu'il en demande un.
-    //   if(!commande.certificat) {
-    //     return {ok: false, err: 'Signature de message "authentifierWebauthn" absente et aucun certificat demande'}
-    //   } else {
-    //     enveloppeCommande.demandeCertificat = commande  // On utilise le format non-signe qui demande un certificat
-    //   }
-    // } else {
-    //   enveloppeCommande.reponseWebauthn = commande  // Reponse au challenge d'authentification pour login
-    // }
+    debug("authentifierWebauthn commande %O", enveloppeCommande)
 
     const domaine = DOMAINE_MAITRECOMPTES
     const action = 'authentifierWebauthn'
-
-    debug("authentifierWebauthn commande %O", enveloppeCommande)
-    // return transmettreCommande(socket, enveloppeCommande, action, {domaine})
 
     return socket.amqpdao.transmettreCommande(
       domaine, 
@@ -193,13 +156,13 @@ class ComptesUsagers {
     return reponse
   }
 
-  changerCleComptePrive = async (nomUsager, nouvelleCle) => {
-    const domaineAction = 'MaitreDesComptes.majCleUsagerPrive'
-    const transaction = {nomUsager, cle: nouvelleCle}
-    debug("Transaction changer mot de passe de %s", nomUsager)
-    await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
-    debug("Transaction changer mot de passe de %s completee", nomUsager)
-  }
+  // changerCleComptePrive = async (nomUsager, nouvelleCle) => {
+  //   const domaineAction = 'MaitreDesComptes.majCleUsagerPrive'
+  //   const transaction = {nomUsager, cle: nouvelleCle}
+  //   debug("Transaction changer mot de passe de %s", nomUsager)
+  //   await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
+  //   debug("Transaction changer mot de passe de %s completee", nomUsager)
+  // }
 
   ajouterCle = async reponseClient => {
     // opts = opts || {}
@@ -218,21 +181,21 @@ class ComptesUsagers {
     return await this.amqDao.transmettreCommande(domaine, commande, {action})
   }
 
-  supprimerCles = async (nomUsager) => {
-    const domaineAction = 'MaitreDesComptes.supprimerCles'
-    const transaction = {nomUsager}
-    debug("Transaction supprimer cles U2F %s", nomUsager)
-    await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
-    debug("Transaction supprimer cles U2F de %s completee", nomUsager)
-  }
+  // supprimerCles = async (nomUsager) => {
+  //   const domaineAction = 'MaitreDesComptes.supprimerCles'
+  //   const transaction = {nomUsager}
+  //   debug("Transaction supprimer cles U2F %s", nomUsager)
+  //   await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
+  //   debug("Transaction supprimer cles U2F de %s completee", nomUsager)
+  // }
 
-  resetWebauthn = async (userId) => {
-    const domaineAction = 'MaitreDesComptes.supprimerCles'
-    const transaction = {userId}
-    debug("Transaction supprimer cles U2F %s", userId)
-    await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
-    debug("Transaction supprimer cles U2F de %s completee", userId)
-  }
+  // resetWebauthn = async (userId) => {
+  //   const domaineAction = 'MaitreDesComptes.supprimerCles'
+  //   const transaction = {userId}
+  //   debug("Transaction supprimer cles U2F %s", userId)
+  //   await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
+  //   debug("Transaction supprimer cles U2F de %s completee", userId)
+  // }
 
   supprimerUsager = async (nomUsager) => {
     const domaineAction = 'MaitreDesComptes.supprimerUsager'
@@ -242,13 +205,13 @@ class ComptesUsagers {
     debug("Transaction supprimer usager %s completee", nomUsager)
   }
 
-  ajouterCertificatNavigateur = async (nomUsager, params) => {
-    const domaineAction = 'MaitreDesComptes.ajouterNavigateur'
-    const transaction = {nomUsager, ...params}
-    debug("Transaction ajouter certificat navigateur compte usager %s", nomUsager)
-    await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
-    debug("Transaction ajouter certificat navigateur compte usager %s completee", nomUsager)
-  }
+  // ajouterCertificatNavigateur = async (nomUsager, params) => {
+  //   const domaineAction = 'MaitreDesComptes.ajouterNavigateur'
+  //   const transaction = {nomUsager, ...params}
+  //   debug("Transaction ajouter certificat navigateur compte usager %s", nomUsager)
+  //   await this.amqDao.transmettreTransactionFormattee(transaction, domaineAction)
+  //   debug("Transaction ajouter certificat navigateur compte usager %s completee", nomUsager)
+  // }
 
   // relayerTransaction = async (transaction) => {
   //   debug("relayerTransaction : %O", transaction)

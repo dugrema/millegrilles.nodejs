@@ -25,7 +25,7 @@ const CERT_CA_FILE = process.env.MG_MQ_CAFILE,
       KEY_CA_FILE = process.env.MG_MQ_KEYFILE,
       REDIS_PWD_FILE = process.env.MG_MQ_REDIS_PASSWD
 
-const CONST_SESSION_TIMEOUT = 3_600_000
+const CONST_SESSION_TIMEOUT = 12 * 3_600_000
 
 // Preparer certificats, mots de passe
 function chargerCredendials() {
@@ -66,7 +66,7 @@ async function server6(app, configurerEvenements, opts) {
         redisPortStr = process.env.MG_REDIS_PORT || '6379',
         activerSocketIoSession = opts.socketIoSession?true:false
   
-  const exchange = opts.exchange || process.env.MG_EXCHANGE_DEFAUT || '3.protege'
+  const exchange = opts.exchange || process.env.MG_EXCHANGE_DEFAUT || '2.prive'
   console.info("****************")
 
   // Creer un URL bien forme pour le host, permet de valider le hostname/port
@@ -235,28 +235,8 @@ function configurerSession(hostname, redisClient, opts) {
     cookieName = cookieName.replace('/', '')
   }
   debug("Cookie name : %O, host %s", cookieName, hostname)
-  const maxAge = opts.maxAge || CONST_SESSION_TIMEOUT   // 1 heure par defaut
+  const maxAge = opts.maxAge || CONST_SESSION_TIMEOUT   // 12 heures par defaut
   const sessionTtl = Math.floor(maxAge / 1000)
-
-  // // Configuration pour le domaine principal. Supporte sous-domaines.
-  // const sessionConfigDomain = {
-  //   secret: secretCookiesPassword,
-  //   store: new redisStore({
-  //     client: redisClient,
-  //     ttl :  260,
-  //   }),
-  //   name: cookieName,
-  //   cookie: {
-  //     path: pathCookie,
-  //     domain: hostname,
-  //     sameSite: 'strict',
-  //     secure: true,
-  //     maxAge,
-  //   },
-  //   proxy: true,
-  //   resave: false,
-  //   saveUninitialized: true,  // Requis pour s'assurer de creer le cookie avant ouverture socket.io (call /verifier)
-  // }
 
   // Configuration pour adresses IP directes ou sites .onion (TOR)
   const sessionConfigNoDomain = {
@@ -269,6 +249,7 @@ function configurerSession(hostname, redisClient, opts) {
     cookie: {
       path: pathCookie,
       sameSite: 'strict',
+      // domain: hostname,  // Domaine flottant pour supporter adresses ip ou sites .onion
       secure: true,
       maxAge,
     },
@@ -279,20 +260,13 @@ function configurerSession(hostname, redisClient, opts) {
 
   debug("Setup session hostname %s avec path : %s", hostname, pathApp)
 
-  // const sessionHandlerDomain = session(sessionConfigDomain)
   const sessionHandlerNoDomain = session(sessionConfigNoDomain)
 
   // Creer une fonction pour mapper le cookie en fonction du hostname client
   const middleware = (req, res, next) => {
-    const hostnameRecu = req.hostname || req.headers.host
+    // const hostnameRecu = req.hostname || req.headers.host
     debug("middleware.session http url %s", req.url)
-
     let sessionHandler = sessionHandlerNoDomain
-    // if(hostnameRecu.endsWith(hostname)) {
-    //   // Utiliser le handler avec sous-domaines (e.g. redmine.mon.domaine.com)
-    //   sessionHandler = sessionHandlerDomain
-    // }
-
     return sessionHandler(req, res, next)
   }
 
@@ -371,10 +345,10 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
       socket.configurationEvenements = configurationEvenements
       debugConnexions("server6.socketActionsMiddleware Configuration evenements : %O", socket.configurationEvenements)
 
+      // Parametres relayes par nginx auth
       // Injecter nom d'usager sur le socket
       let nomUsager = headers['x-user-name'],
           userId = headers['x-user-id']
-
       // Determiner score d'authentification
       let authScore = headers['x-user-authscore']
 
@@ -412,7 +386,6 @@ function socketActionsMiddleware(amqpdao, configurerEvenements, opts) {
         debugConnexions("Configurer evenements prives : %O", configurationEvenements.listenersPrives)
         socket.on('upgradeProtege', (params, cb)=>upgradeConnexion(socket, params, cb))
         socket.on('upgrade', (params, cb)=>upgradeConnexion(socket, params, cb))
-        // socket.activerListenersPrives()
       }
 
       socket.on('unsubscribe', (params, cb) => unsubscribe(socket, params, cb))
