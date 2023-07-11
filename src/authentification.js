@@ -59,6 +59,14 @@ async function verifierUsager(socket, params) {
 
     session.userId = compteUsager.userId
 
+    if(socket.modeProtege === true) {
+      // La session est ouverte et verifiee - on retourne info de certificat
+      reponse.updates = {
+        delegations_date: compteUsager.delegations_date,
+        delegations_version: compteUsager.delegations_version,
+      }
+    }
+
     // Tranferer information client vers reponse
     reponse.registration_challenge = infoUsager.registration_challenge
 
