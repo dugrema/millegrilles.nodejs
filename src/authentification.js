@@ -35,7 +35,8 @@ async function verifierUsager(socket, params) {
   const nomUsager = params.nomUsager,
         fingerprintPk = params.fingerprintPk,
         fingerprintCourant = params.fingerprintCourant,
-        hostname = params.hostname
+        hostname = params.hostname,
+        genererChallenge = params.genererChallenge || false
 
   debug("Verification d'existence d'un usager : %s\nBody: %O", nomUsager, params)
 
@@ -43,8 +44,10 @@ async function verifierUsager(socket, params) {
     console.error(new Date() + " verifierUsager: Requete sans nom d'usager")
     return {err: 'Requete sans nom d\'usager'}
   }
-
-  const infoUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager, fingerprintPk, null, {hostname})
+  
+  const optsChargerCompte = {}
+  if(genererChallenge) optsChargerCompte.hostname = hostname  // Agit comme flag pour generer un challenge dans la DB
+  const infoUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager, fingerprintPk, null, optsChargerCompte)
   const compteUsager = infoUsager.compte
 
   debug("Compte usager recu : %O", infoUsager)
@@ -72,12 +75,14 @@ async function verifierUsager(socket, params) {
     // }
     // reponse.challengeCertificat = challengeCertificat
 
-    // Conserver passkey_authentication pour verifier localement avant d'emettre vers back-end
-    session.passkey_authentication = infoUsager.passkey_authentication
-
     // Tranferer information client vers reponse
     reponse.registration_challenge = infoUsager.registration_challenge
-    reponse.authentication_challenge = infoUsager.authentication_challenge
+
+    if(genererChallenge) {
+      // Conserver passkey_authentication pour verifier localement avant d'emettre vers back-end
+      session.passkey_authentication = infoUsager.passkey_authentication
+      reponse.authentication_challenge = infoUsager.authentication_challenge
+    }
 
     // if(compteUsager.registration) {
     //   // Generer un challenge U2F
