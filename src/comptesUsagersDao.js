@@ -263,13 +263,18 @@ class ComptesUsagers {
   //   }
   // }
 
-  activerDelegationParCleMillegrille = async (_socket, params) => {
-    const {userId, confirmation} = JSON.parse(params.contenu)
+  activerDelegationParCleMillegrille = async (socket, params) => {
+    const session = socket.handshake.session,
+          userId = session.userId,
+          hostname = socket.handshake.headers.host
+
+    const {confirmation} = JSON.parse(params.contenu)
     const domaine = 'CoreMaitreDesComptes'
     const action = 'ajouterDelegationSignee'
     const transaction = {
       confirmation,
-      userId,  // Ajouter le userid, n'est pas present dans la demande signee initiale
+      userId,
+      hostname,
     }
     debug("Transaction ajouterDelegationSignee %O", transaction)
     const reponse = await this.amqDao.transmettreCommande(domaine, transaction, {action})
