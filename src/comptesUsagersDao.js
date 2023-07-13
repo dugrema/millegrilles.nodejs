@@ -318,39 +318,41 @@ class ComptesUsagers {
     const action = 'signerCompteUsager'
 
     // Charger usager
-    const webauthnChallenge = socket.webauthnChallenge,
+    const // webauthnChallenge = socket.webauthnChallenge,
           clientAssertionResponse = contenu.clientAssertionResponse,
           demandeCertificat = contenu.demandeCertificat,
           userId = contenu.userId
 
-    if(webauthnChallenge) {
+    // if(webauthnChallenge) {
+    if(clientAssertionResponse) {
       // Signature webauthn par l'usager du compte. Verifier avant de passer sur MQ.
-
-      const compteUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager)
-      debug("Compte usager charge : %O\nChallenge session : %O\nVerifier %O", compteUsager, webauthnChallenge, clientAssertionResponse)
+      // const compteUsager = await socket.comptesUsagersDao.chargerCompte(nomUsager)
+      // debug("Compte usager charge : %O\nChallenge session : %O\nVerifier %O", compteUsager, webauthnChallenge, clientAssertionResponse)
   
-      // Verification du challenge
-      try {
-        await verifierChallenge(webauthnChallenge, compteUsager, clientAssertionResponse, {demandeCertificat})
-        debug("Transmettre commande recovery CSR\n%O", commande)
-        return transmettreCommande(socket, commande, action, {domaine})
-      } catch(err) {
-        debug("signerRecoveryCsr Erreur verification: %O", err)
-        return {ok: false, 'err': 'Erreur verification challenge webauthn'}
-      }
-
-    } else if(userId) {
-      // On n'a pas de signature webauthn. Verifier la signature de la requete, doit etre une delegation globale
-      const chaineForge = await socket.amqpdao.pki.getCertificatMessage(commande)
-      const certificat = chaineForge[0]
-      const infoCertificat = extraireExtensionsMillegrille(certificat)
-      if(infoCertificat.delegationGlobale !== 'proprietaire') {
-        return {ok: false, err: 'Acces refuse, doit etre delegation globale'}
-      }
-
-      // Ok, on transmet la commande
+      // // Verification du challenge
+      // try {
+      //   await verifierChallenge(webauthnChallenge, compteUsager, clientAssertionResponse, {demandeCertificat})
+      //   debug("Transmettre commande recovery CSR\n%O", commande)
+      //   return transmettreCommande(socket, commande, action, {domaine})
+      // } catch(err) {
+      //   debug("signerRecoveryCsr Erreur verification: %O", err)
+      //   return {ok: false, 'err': 'Erreur verification challenge webauthn'}
+      // }
       return transmettreCommande(socket, commande, action, {domaine})
-    } else {
+    } 
+    // else if(userId) {
+    //   // On n'a pas de signature webauthn. Verifier la signature de la requete, doit etre une delegation globale
+    //   const chaineForge = await socket.amqpdao.pki.getCertificatMessage(commande)
+    //   const certificat = chaineForge[0]
+    //   const infoCertificat = extraireExtensionsMillegrille(certificat)
+    //   if(infoCertificat.delegationGlobale !== 'proprietaire') {
+    //     return {ok: false, err: 'Acces refuse, doit etre delegation globale'}
+    //   }
+
+    //   // Ok, on transmet la commande
+    //   return transmettreCommande(socket, commande, action, {domaine})
+    // } 
+    else {
       return {ok: false, err: 'Acces refuse, commande incomplete ou non autorisee'}
     }
 
