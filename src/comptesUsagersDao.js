@@ -310,18 +310,14 @@ class ComptesUsagers {
 
     // Supporter session.nomUsager pour enregistrement usager maitrcomptes
     const session = socket.handshake.session || {}
-    const nomUsager = socket.nomUsager || session.nomUsager
 
-          // Utilise la signature de l'usager pour charger son compte
+    // Utilise la signature de l'usager pour charger son compte
     if(!commande.sig) return {ok: false, err: 'Signature de message "signerRecoveryCsr" absente'}
     const domaine = DOMAINE_MAITRECOMPTES
     const action = 'signerCompteUsager'
 
     // Charger usager
-    const // webauthnChallenge = socket.webauthnChallenge,
-          clientAssertionResponse = contenu.clientAssertionResponse,
-          demandeCertificat = contenu.demandeCertificat,
-          userId = contenu.userId
+    const clientAssertionResponse = contenu.clientAssertionResponse
 
     // if(webauthnChallenge) {
     if(clientAssertionResponse) {
@@ -340,21 +336,21 @@ class ComptesUsagers {
       // }
       return transmettreCommande(socket, commande, action, {domaine})
     } 
-    // else if(userId) {
-    //   // On n'a pas de signature webauthn. Verifier la signature de la requete, doit etre une delegation globale
-    //   const chaineForge = await socket.amqpdao.pki.getCertificatMessage(commande)
-    //   const certificat = chaineForge[0]
-    //   const infoCertificat = extraireExtensionsMillegrille(certificat)
-    //   if(infoCertificat.delegationGlobale !== 'proprietaire') {
-    //     return {ok: false, err: 'Acces refuse, doit etre delegation globale'}
-    //   }
-
-    //   // Ok, on transmet la commande
-    //   return transmettreCommande(socket, commande, action, {domaine})
-    // } 
     else {
-      return {ok: false, err: 'Acces refuse, commande incomplete ou non autorisee'}
-    }
+      // On n'a pas de signature webauthn. Verifier la signature de la requete, doit etre une delegation globale
+      const chaineForge = await socket.amqpdao.pki.getCertificatMessage(commande)
+      const certificat = chaineForge[0]
+      const infoCertificat = extraireExtensionsMillegrille(certificat)
+      if(infoCertificat.delegationGlobale !== 'proprietaire') {
+        return {ok: false, err: 'Acces refuse, doit etre delegation globale ou verifie via webauthn'}
+      }
+
+      // Ok, on transmet la commande
+      return transmettreCommande(socket, commande, action, {domaine})
+    } 
+    // else {
+    //   return {ok: false, err: 'Acces refuse, commande incomplete ou non autorisee'}
+    // }
 
   }
 }
