@@ -24,9 +24,12 @@ async function verifierUsager(socket, params) {
     - req.comptesUsagers
   */
 
-  debug("common.authentification.verifierUsager %O", params)
+  debug("common.authentification.verifierUsager PARAMS : %O", params)
   const session = socket.handshake.session,
         hostnameRequest = socket.handshake.headers.host
+
+  if(!params.nomUsager) throw new Error("verifierUsager Params sans nomUsager")
+
   const nomUsager = params.nomUsager,
         fingerprintPk = params.fingerprintPk,
         fingerprintCourant = params.fingerprintCourant,
@@ -81,11 +84,21 @@ async function verifierUsager(socket, params) {
       reponse.certificat = compteUsager.certificat
     }
 
-    const activations = infoUsager.activations || {},    
-          activation = activations[fingerprintCourant]
+    // Trouver activation. Privilegier activation du nouveau certificat (fingerprintPk)
+    // Fallback sur certificat courant (fingerprintCourant)
+    const activations = infoUsager.activations || {}
+    let activation = activations[fingerprintPk]
+    if(!activation) {
+      activation = activations[fingerprintCourant]
+    }
     if(activation) {
       // Filtrer methodes d'activation
-      reponse.activation = {...activation, fingerprint: fingerprintCourant, valide: true}
+      reponse.activation = {...activation, fingerprint: activation.fingerprint_pk, valide: true}
+      if(reponse.activation.certificat) {
+        // Extraire le certificat vers top du compte
+        reponse.certificat = reponse.activation.certificat
+        delete reponse.activation.certificat
+      }
       reponse.methodesDisponibles = {certificat: true}
     } else if(socket.modeProtege === true) {
       reponse.methodesDisponibles = {certificat: true}
