@@ -54,7 +54,7 @@ class RoutingKeyManager {
 
   async handleMessage(routingKey, messageContent, opts) {
     if(!opts) opts = {}
-    const {properties, fields, certificat} = opts
+    const {properties, fields, certificat, extensions} = opts
 
     let callbackEntry = this.registeredRoutingKeyCallbacks[routingKey]
     const correlationId = properties.correlationId,
@@ -71,6 +71,7 @@ class RoutingKeyManager {
       let opts = {
         properties,
         certificat,
+        extensions,
       }
       promise = callbackEntry.callback(routingKey, json_message, opts);
       // if(promise) {

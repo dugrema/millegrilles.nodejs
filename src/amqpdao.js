@@ -8,6 +8,8 @@ const amqplib = require('amqplib')
 
 const { MESSAGE_KINDS } = require('@dugrema/millegrilles.utiljs/src/constantes')
 
+const { extraireExtensionsMillegrille } = require('@dugrema/millegrilles.utiljs/src/forgecommon')
+
 const RoutingKeyManager = require('./routingKeyManager')
 const GestionnaireCertificatMessages = require('./certificatManager')
 
@@ -574,6 +576,8 @@ class MilleGrillesAmqpDAO {
           exchange = msg.fields.exchange,
           correlationId = msg.properties.correlationId
 
+    const extensions = extraireExtensionsMillegrille(certificat)
+
     var callbackInfo = null
     try {
 
@@ -591,13 +595,13 @@ class MilleGrillesAmqpDAO {
           }
           debug("traiterMessageValide: executer callback")
           for await (const cb of callbackInfo.callback) {
-            reponse = await cb(messageDict, null, {certificat})
+            reponse = await cb(messageDict, null, {certificat, extensions})
           }
           // reponse = await callbackInfo.callback(messageDict, null, {certificat})
           debug("traiterMessageValide: callback termine")
         } else {
           debug("Message recu sur Q (direct), aucun callback pour correlationId %s. Transferer au routingKeyManager.", correlationId)
-          reponse = await this.routingKeyManager.handleResponse(correlationId, msg.content, {properties, fields: msg.fields, certificat});
+          reponse = await this.routingKeyManager.handleResponse(correlationId, msg.content, {properties, fields: msg.fields, certificat, extensions});
         }
 
       } else if(routingKey) {
@@ -605,7 +609,7 @@ class MilleGrillesAmqpDAO {
         debugMessages("traiterMessageValide par routing keys:\nFields: %O\nProperties: %O\n%O",
           msg.fields, msg.properties, messageDict)
         reponse = await this.routingKeyManager.handleMessage(
-          routingKey, msg.content, {properties, fields: msg.fields, certificat});
+          routingKey, msg.content, {properties, fields: msg.fields, certificat, extensions});
 
       } else {
         console.warn("Recu message sans correlation Id ou routing key :\n%O", messageDict);
