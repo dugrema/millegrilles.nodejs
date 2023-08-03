@@ -1,6 +1,6 @@
 {
   "name": "millegrilles.nodejs",
-  "version": "2023.7.0",
+  "version": "2023.8.0",
   "description": "Utilitaires communs serveur NodeJS pour MilleGrilles",
   "author": "dugrema",
   "license": "MIT",
@@ -25,11 +25,11 @@
     "src"
   ],
   "dependencies": {
-    "@dugrema/millegrilles.utiljs": "github:dugrema/millegrilles.utiljs#2023.7",
+    "@dugrema/millegrilles.utiljs": "github:dugrema/millegrilles.utiljs#2023.8",
     "amqplib": "^0.10.3",
-    "axios": "^1.3.3",
+    "axios": "^1.4.0",
     "base64url": "^3.0.1",
-    "blake2": "^4.1.1",
+    "blake2": "^5.0.0",
     "connect-redis": "^6.1.3",
     "express-session": "^1.17.3",
     "express-socket.io-session": "^1.3.5",
@@ -38,8 +38,8 @@
     "libsodium-wrappers": "^0.7.11",
     "morgan": "^1.10.0",
     "readdirp": "^3.6.0",
-    "redis": "^4.6.4",
-    "socket.io": "^4.6.0",
+    "redis": "^4.6.7",
+    "socket.io": "^4.7.2",
     "spdy": "^4.0.2",
     "string_decoder": "^1.3.0"
   },
