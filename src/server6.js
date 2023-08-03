@@ -135,7 +135,7 @@ async function server6(app, configurerEvenements, opts) {
   app.use(morgan('combined'))
 
   // legacyMode: true
-  const redisClientSession = redis.createClient({
+  const redisClientParams = {
     legacyMode: true,  // Requis pour session manager
     username: 'client_nodejs',
     password: credentials.redis_password,
@@ -148,10 +148,16 @@ async function server6(app, configurerEvenements, opts) {
       cert: credentials.cert,
       key: credentials.key,
     }
-  })
+  }
+  const redisClientSession = redis.createClient(redisClientParams)
   await redisClientSession.connect()
   await redisClientSession.ping()
   const sessionMiddleware = configurerSession(hostname, redisClientSession, opts)
+
+  // Client supplementaire pour operations
+  const redisClientSession2 = redis.createClient(redisClientParams)
+  await redisClientSession2.connect()
+  await redisClientSession2.ping()
 
   // Utiliser la session pour toutes les routes
   app.use(sessionMiddleware)
@@ -167,7 +173,7 @@ async function server6(app, configurerEvenements, opts) {
     req.amqpdao = amqpdao
     req.comptesUsagersDao = comptesUsagersDao
     req.redisClient = redisClient
-    req.redisClientSession = redisClientSession
+    req.redisClientSession = redisClientSession2
     next()
   })
 
@@ -228,6 +234,7 @@ function configurerSession(hostname, redisClient, opts) {
   if(opts.cookiePath) {
     pathCookie = opts.cookiePath
   }
+  const prefix = opts.prefix || 'sess:'
 
   var cookieName = 'millegrilles.sid'
   if(opts.pathApp) {
@@ -244,6 +251,7 @@ function configurerSession(hostname, redisClient, opts) {
     store: new redisStore({
       client: redisClient,
       ttl : sessionTtl,
+      prefix,
     }),
     name: cookieName,
     cookie: {
@@ -258,6 +266,7 @@ function configurerSession(hostname, redisClient, opts) {
     saveUninitialized: true,  // Requis pour s'assurer de creer le cookie avant ouverture socket.io (call /verifier)
   }
 
+  // debug("Config session avec redis : ", sessionConfigNoDomain)
   debug("Setup session hostname %s avec path : %s", hostname, pathApp)
 
   const sessionHandlerNoDomain = session(sessionConfigNoDomain)
@@ -267,6 +276,7 @@ function configurerSession(hostname, redisClient, opts) {
     // const hostnameRecu = req.hostname || req.headers.host
     debug("middleware.session http url %s", req.url)
     let sessionHandler = sessionHandlerNoDomain
+
     return sessionHandler(req, res, next)
   }
 
