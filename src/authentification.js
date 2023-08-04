@@ -339,67 +339,67 @@ async function upgradeProteger(socket, params) {
 
 }
 
-// async function veriferUpgradeProtegerApp(socket, params, opts) {
-//   params = params || {}
-//   opts = opts || {}
+async function veriferUpgradeProtegerApp(socket, params, opts) {
+  params = params || {}
+  opts = opts || {}
 
-//   debug("upgradeProteger, params : %O", params)
-//   const session = socket.handshake.session,
-//         userId = socket.userId,
-//         nomUsager = socket.nomUsager,
-//         authScore = socket.authScore,
-//         challengeSocket = socket[CONST_CHALLENGE_CERTIFICAT],
-//         certCa = socket.amqpdao.pki.ca
+  debug("upgradeProteger, params : %O", params)
+  const session = socket.handshake.session,
+        userId = socket.userId,
+        nomUsager = socket.nomUsager,
+        authScore = socket.authScore,
+        challengeSocket = socket[CONST_CHALLENGE_CERTIFICAT],
+        certCa = socket.amqpdao.pki.ca
 
-//   if(!challengeSocket) {
-//     debug("Challenge socket n'a pas ete genere")
-//     return false
-//   }
+  if(!challengeSocket) {
+    debug("Challenge socket n'a pas ete genere")
+    return false
+  }
 
-//   const idmg = socket.amqpdao.pki.idmg
+  const idmg = socket.amqpdao.pki.idmg
 
-//   // Pour permettre l'upgrade, on doit avoir un score d'authentification d'au
-//   // moins 2 methodes.
-//   let score = Number(authScore)
+  // Pour permettre l'upgrade, on doit avoir un score d'authentification d'au
+  // moins 2 methodes.
+  let score = Number(authScore)
 
-//   if(score > 1) {
-//     // Conserver dans la session qu'on est alle en mode protege
-//     // Permet de revalider le mode protege avec le certificat de navigateur
-//     const resultat = await verifierSignatureCertificat(
-//       idmg, params.certificat, challengeSocket, params, {certCa})
+  if(score > 1) {
+    // Conserver dans la session qu'on est alle en mode protege
+    // Permet de revalider le mode protege avec le certificat de navigateur
+    const resultat = await verifierSignatureCertificat(
+      idmg, params.certificat, challengeSocket, params, {certCa})
 
-//     debug("upgradeProtegeCertificat: Resultat = %O", resultat)
+    debug("upgradeProtegeCertificat: Resultat = %O", resultat)
 
-//     if(resultat.valide) {
+    if(resultat.valide) {
 
-//       // Verifier que le userId correspond
-//       const extensions = resultat.extensions
-//       if(extensions.userId !== userId) {
-//         debug("Mauvais userId : socket %s, certificat %s", userId, extensions.userId)
-//         return false
-//       }
+      // Verifier que le userId correspond
+      const extensions = resultat.extensions
+      if(extensions.userId !== userId) {
+        debug("Mauvais userId : socket %s, certificat %s", userId, extensions.userId)
+        return false
+      }
 
-//       // Verifier si on a des conditions supplementaires (e.g. delegations)
-//       if(socket.verifierAutorisation) {
-//         debug("Verifier autorisation usager %s / ext: %O / session : %O", nomUsager, extensions, session)
-//         let autorise = await socket.verifierAutorisation(socket, '3.protege', resultat.certificat)
-//         if(autorise) {
-//           debug("Activer mode protege pour socket %s de l'usager %s", socket.id, nomUsager)
-//           return {prive: true, protege: true}
-//         } else {
-//           autorise = await socket.verifierAutorisation(socket, '2.prive', resultat.certificat)
-//           return {prive: true, protege: false}
-//         }
-//       } else {
-//         debug("Activer mode prive pour socket %s de l'usager %s", socket.id, nomUsager)
-//         return {prive: true, protege: false}
-//       }
+      // Verifier si on a des conditions supplementaires (e.g. delegations)
+      if(socket.verifierAutorisation) {
+        debug("Verifier autorisation usager %s / ext: %O / session : %O", nomUsager, extensions, session)
+        let autorise = await socket.verifierAutorisation(socket, '3.protege', resultat.certificat)
+        if(autorise) {
+          debug("Activer mode protege pour socket %s de l'usager %s", socket.id, nomUsager)
+          return {prive: true, protege: true}
+        } else {
+          autorise = await socket.verifierAutorisation(socket, '2.prive', resultat.certificat)
+          return {prive: true, protege: false}
+        }
+      } else {
+        debug("Activer mode prive pour socket %s de l'usager %s", socket.id, nomUsager)
+        return {prive: true, protege: false}
+      }
 
-//     }
-//   }
+    }
+  }
 
-//   return {prive: false, protege: false}
-// }
+  return {prive: false, protege: false}
+}
 
 async function verifierSignatureCertificat(idmg, chainePem, challengeSession, challengeRecu, opts) {
   opts = opts || {}
@@ -477,7 +477,7 @@ module.exports = {
   verifierSignatureCertificat, verifierSignatureMillegrille,
   genererChallengeCertificat,
   // verifierMethode, 
-  // veriferUpgradeProtegerApp,
+  veriferUpgradeProtegerApp,
 
   CONST_CHALLENGE_CERTIFICAT, CONST_AUTH_PRIMAIRE, CONST_AUTH_SECONDAIRE, CONST_WEBAUTHN_CHALLENGE,
 }
