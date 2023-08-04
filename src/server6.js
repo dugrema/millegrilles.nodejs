@@ -121,6 +121,9 @@ async function server6(app, configurerEvenements, opts) {
       key: credentials.key,
     }
   })
+  redisClient.on('error', err=>{
+    debug("redisClient ERROR ", err)
+  })
   debug("Redis client information :\n%O", redisClient)
   await redisClient.connect()
   await redisClient.ping()
@@ -150,12 +153,20 @@ async function server6(app, configurerEvenements, opts) {
     }
   }
   const redisClientSession = redis.createClient(redisClientParams)
+  redisClientSession.on('error', err=>{
+    debug("redisClientSession ERROR ", err)
+  })
+
   await redisClientSession.connect()
   await redisClientSession.ping()
   const sessionMiddleware = configurerSession(hostname, redisClientSession, opts)
 
   // Client supplementaire pour operations
-  const redisClientSession2 = redis.createClient(redisClientParams)
+  const redisClientSession2 = redis.createClient({...redisClientParams, legacyMode: false})
+  redisClientSession2.on('error', err=>{
+    debug("redisClientSession2 ERROR ", err)
+  })
+
   await redisClientSession2.connect()
   await redisClientSession2.ping()
 
@@ -190,6 +201,7 @@ async function server6(app, configurerEvenements, opts) {
     socket.comptesUsagersDao = comptesUsagersDao
     socket.comptesUsagers = comptesUsagersDao
     socket.redisClient = redisClient
+    socket.redisClientSession = redisClientSession2
 
     if(opts.verifierAutorisation) {
       socket.verifierAutorisation = opts.verifierAutorisation
