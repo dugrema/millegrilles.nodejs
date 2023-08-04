@@ -25,7 +25,7 @@ const CERT_CA_FILE = process.env.MG_MQ_CAFILE,
       KEY_CA_FILE = process.env.MG_MQ_KEYFILE,
       REDIS_PWD_FILE = process.env.MG_MQ_REDIS_PASSWD
 
-const CONST_SESSION_TIMEOUT = 12 * 3_600_000
+const CONST_SESSION_TIMEOUT = 1 * 3_600_000  // 1 heure
 
 // Preparer certificats, mots de passe
 function chargerCredendials() {
@@ -253,9 +253,10 @@ function configurerSession(hostname, redisClient, opts) {
     cookieName = opts.pathApp + '.sid'
     cookieName = cookieName.replace('/', '')
   }
-  debug("Cookie name : %O, host %s", cookieName, hostname)
   const maxAge = opts.maxAge || CONST_SESSION_TIMEOUT   // 12 heures par defaut
   const sessionTtl = Math.floor(maxAge / 1000)
+
+  debug("configurerSession Cookie name : %O, host %s. Duree session (ms) : %s", cookieName, hostname, maxAge)
 
   // Configuration pour adresses IP directes ou sites .onion (TOR)
   const sessionConfigNoDomain = {
