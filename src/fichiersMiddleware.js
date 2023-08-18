@@ -351,14 +351,8 @@ async function stagingPut(pathStaging, inputStream, batchId, correlation, positi
         // Assumer stream
         let compteurTaille = 0
         const promise = new Promise((resolve, reject)=>{
-            inputStream.on('data', chunk=>{ 
-                compteurTaille += chunk.length
-                if(verificateurHachage) {
-                    verificateurHachage.update(chunk)
-                }
-                return chunk
-            })
-            inputStream.on('end', async () => { 
+            // Hook du writer pour fermer normalement (resolve)
+            writer.on('close', async () => {
                 // Resultat OK
                 const nouvellePosition = compteurTaille + contenuStatus.position
                 if(verificateurHachage) {
@@ -366,10 +360,10 @@ async function stagingPut(pathStaging, inputStream, batchId, correlation, positi
                         await verificateurHachage.verify()
                     } catch(err) {
                         debug("Erreur de hachage ", err)
-                        fsPromises.unlink(pathFichierPut).catch(err=>{
-                            console.error("Erreur delete part incomplet %s : %O", pathFichierPut, err)
+                        fsPromises.unlink(pathFichierPutWork).catch(err=>{
+                            console.error("Erreur delete part incomplet %s : %O", pathFichierPutWork, err)
                         })
-                        err.response = {status: 400, data: {ok: false, err: ''+err, code: 'Hash mismatch'}}
+                        err.response = {status: 400, data: {ok: false, err: ''+err, code: 'fichierMiddleware Hash mismatch'}}
                         return reject(err)
                     }
     
@@ -383,11 +377,54 @@ async function stagingPut(pathStaging, inputStream, batchId, correlation, positi
                     .then(()=>resolve())
                     .catch(err=>reject(err))
             })
-            inputStream.on('error', err=>{ 
+
+            inputStream.on('data', chunk=>{ 
+                compteurTaille += chunk.length
+                if(verificateurHachage) {
+                    verificateurHachage.update(chunk)
+                }
+                return chunk
+            })
+
+            // Cas d'erreur
+            writer.on('error', err => { 
                 fsPromises.unlink(pathFichierPut).catch(err=>{
                     console.error("Erreur delete part incomplet %s : %O", pathFichierPut, err)
                 })
                 reject(err)
+            })
+            inputStream.on('error', err => { 
+                fsPromises.unlink(pathFichierPut).catch(err=>{
+                    console.error("Erreur delete part incomplet %s : %O", pathFichierPut, err)
+                })
+                reject(err)
+            })
+
+            inputStream.on('end', () => { 
+                debug("Inpustream end OK")
+                // // Resultat OK
+                // const nouvellePosition = compteurTaille + contenuStatus.position
+                // if(verificateurHachage) {
+                //     try {
+                //         await verificateurHachage.verify()
+                //     } catch(err) {
+                //         debug("Erreur de hachage ", err)
+                //         fsPromises.unlink(pathFichierPut).catch(err=>{
+                //             console.error("Erreur delete part incomplet %s : %O", pathFichierPut, err)
+                //         })
+                //         err.response = {status: 400, data: {ok: false, err: ''+err, code: 'Hash mismatch'}}
+                //         return reject(err)
+                //     }
+    
+                //     debug("Hachage part OK")
+                // }
+                // await majFichierEtatUpload(pathStaging, batchId, correlation, {position: nouvellePosition})
+                //     .then(()=>{
+                //         debug("stagingPut Rename fichier work vers ", pathFichierPut)
+                //         return fsPromises.rename(pathFichierPutWork, pathFichierPut)
+                //     })
+                //     .then(()=>resolve())
+                //     .catch(err=>reject(err))
             })
         })
         inputStream.pipe(writer)
