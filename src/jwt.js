@@ -38,6 +38,10 @@ async function verifierTokenFichier(pki, jwt) {
     const fingerprint = header.kid
     debug("verifierTokenFichier Decoder header : %O\nFingerprint : %O", header, fingerprint)
   
+    if(!fingerprint) {
+        throw new Error('fingerprint (kid) absent du token JWT')
+    }
+
     const certificat = await pki.getCertificate(fingerprint)
     debug("verifierTokenFichier Certificat %s charge : %O", fingerprint, certificat)
 
@@ -54,6 +58,7 @@ async function verifierTokenFichier(pki, jwt) {
     debug("verifierTokenFichier Cert charge : %O\nPublic key : %O", certificat[0], publicKey)
 
     const verification = await jwtVerify(jwt, publicKey)
+    debug("Resultat verification JWT : %O", verification)
 
     return {...verification, extensions}
 }
